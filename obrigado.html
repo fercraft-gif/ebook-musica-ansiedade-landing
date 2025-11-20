@@ -6,11 +6,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Obrigado pela compra do e-book Música & Ansiedade. Baixe agora o seu PDF."
+      content="Obrigado pela compra do e-book Música & Ansiedade. Baixe agora o seu PDF com segurança."
+    />
+
+    <!-- MESMAS FONTES E CSS DA HOME -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap"
+      rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <!-- HEADER IGUAL AO INDEX -->
     <header class="site-header">
       <div class="container header-inner">
         <div class="logo-block">
@@ -24,8 +31,8 @@
     </header>
 
     <main>
-      <!-- SEÇÃO PRINCIPAL DE OBRIGADO -->
-      <section class="section hero">
+      <!-- SEÇÃO PRINCIPAL -->
+      <section class="hero">
         <div class="container hero-grid">
           <!-- TEXTO -->
           <div class="hero-text">
@@ -34,16 +41,16 @@
             <h1 class="hero-title">Obrigada(o) pela sua compra ✨</h1>
 
             <p class="hero-subtitle">
-              Seu pagamento do e-book <strong>Música &amp; Ansiedade</strong> foi registrado
-              com sucesso.
+              Seu pagamento do e-book <strong>Música &amp; Ansiedade</strong> foi
+              registrado com sucesso.
             </p>
 
             <p class="hero-tagline">
-              Agora é só baixar o PDF e começar a usar a música como aliada na redução da
-              ansiedade no seu dia a dia.
+              Agora é só liberar o download com segurança e começar a usar a
+              música como aliada na redução da ansiedade.
             </p>
 
-            <!-- BLOCO DOWNLOAD -->
+            <!-- BLOCO DOWNLOAD (AGORA VIA API) -->
             <div class="price-box">
               <div>
                 <p class="price-label">SEU E-BOOK</p>
@@ -54,39 +61,30 @@
               </div>
 
               <div class="cta-group">
-                <!-- BOTÃO PRINCIPAL DE DOWNLOAD -->
-                <a
-                  id="download-ebook"
-                  href="musica-e-ansiedade.pdf.pdf"
-                  class="btn btn-primary"
-                  download="Musica-e-Ansiedade.pdf"
-                >
+                <!-- Botão principal de download -->
+                <button id="download-ebook" class="btn btn-primary">
                   BAIXAR E-BOOK EM PDF
-                </a>
+                </button>
 
-                <!-- BOTÃO SECUNDÁRIO: ABRIR NO NAVEGADOR -->
-                <a
-                  href="musica-e-ansiedade.pdf.pdf"
-                  class="btn btn-outline"
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <!-- Botão para abrir em nova aba -->
+                <button id="open-ebook" class="btn btn-outline">
                   ABRIR EM NOVA ABA
-                </a>
+                </button>
               </div>
             </div>
 
             <p class="hero-notice">
               Se tiver qualquer problema com o download, envie um e-mail para
-              <strong>mt.fernandazaguini@gmail.com</strong> com o comprovante de pagamento.
+              <strong>mt.fernandazaguini@gmail.com</strong> com o comprovante de
+              pagamento.
             </p>
           </div>
 
-          <!-- LADO DIREITO: VISUAL DA CAPA -->
+          <!-- LADO DIREITO: CAPA -->
           <div class="hero-cover">
             <div class="cover-card">
               <img
-                src="assets/ebook-cover.png"
+                src="assets/ebook-cover.webp"
                 alt="Capa do e-book Música &amp; Ansiedade"
                 class="cover-image"
               />
@@ -96,13 +94,12 @@
         </div>
       </section>
 
-      <!-- SEÇÃO EXTRA OPCIONAL: ORIENTAÇÕES -->
+      <!-- SEÇÃO EXTRA -->
       <section class="section section-alt">
         <div class="container">
-          <h2 class="section-title">Não esqueça de se cuidar com carinho</h2>
+          <h2 class="section-title">Cuide de você com carinho</h2>
           <p class="section-intro">
-            Guarde o PDF em um lugar fácil de encontrar (celular, tablet ou computador) e
-            reserve momentos tranquilos para ler com calma. Voltando a ele sempre que
+            Guarde o PDF em um lugar fácil de encontrar e volte a ele sempre que
             precisar organizar o corpo, a respiração e as emoções.
           </p>
         </div>
@@ -112,24 +109,11 @@
     <footer class="site-footer">
       <div class="container footer-inner">
         <p>© 2025 Octopus Axis — Música &amp; Medicina.</p>
-        <p>Contato: mt.fernandazaguini@gmail.com</p>
+        <p>Contato: contato@octopusaxis.com</p>
       </div>
     </footer>
 
-    <!-- SCRIPT PARA ABRIR O PDF AUTOMATICAMENTE -->
-    <script>
-      window.addEventListener("load", () => {
-        const link = document.getElementById("download-ebook");
-        if (!link) return;
-
-        // tenta abrir o PDF em nova aba
-        const opened = window.open(link.href, "_blank");
-
-        // fallback se bloqueado por pop-up
-        if (!opened) {
-          setTimeout(() => link.click(), 500);
-        }
-      });
-    </script>
+    <!-- SCRIPT QUE CHAMA /api/download -->
+    <script src="download.js"></script>
   </body>
 </html>
