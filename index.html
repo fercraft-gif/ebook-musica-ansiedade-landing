@@ -530,12 +530,12 @@
     <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script>
       // 🔐 SUPABASE
-      const SUPABASE_URL = "https://nfvbqxuwjhifrndbzmnp.supabase.co";
-      const SUPABASE_ANON_KEY =
+      const SUPABASE_LANDING_SUPABASE_URL = "https://nfvbqxuwjhifrndbzmnp.supabase.co";
+      const SUPABASESUPABASE_LANDING_SUPABASE_ANON_KEY =
         "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mdmJxeHV3amhpZnJuZGJ6bW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0MzQwMDgsImV4cCI6MjA3OTAxMDAwOH0.0C_nquQyO3btIDzNhfpNQ-ngmlDE8xUdvgA_4q9sDM8";
 
       const { createClient } = supabase;
-      const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      const supabaseClient = createClient(SUPABASE_LANDING_SUPABASE_URL, SUPABASESUPABASE_LANDING_SUPABASE_ANON_KEY);
 
       // 💳 MERCADO PAGO
       const MP_PUBLIC_KEY =
