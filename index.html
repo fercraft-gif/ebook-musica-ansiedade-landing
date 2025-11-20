@@ -8,15 +8,98 @@
       name="description"
       content="E-book Música & Ansiedade — um guia simples, sensível e direto para usar a música a favor da sua mente."
     />
-
-    <!-- Fontes modernas -->
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@600;700;800&display=swap"
-      rel="stylesheet"
-    />
-
     <link rel="stylesheet" href="styles.css" />
+
+    <!-- ESTILO BÁSICO DO MODAL -->
+    <style>
+      .checkout-modal {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 999;
+      }
+      .checkout-modal.hidden {
+        display: none;
+      }
+      .checkout-modal-inner {
+        position: relative;
+        max-width: 480px;
+        width: 92%;
+        background: #071820;
+        color: #f9fafb;
+        padding: 2rem 2.25rem;
+        border-radius: 1.25rem;
+        box-shadow: 0 22px 45px rgba(0, 0, 0, 0.6);
+      }
+      .checkout-modal-inner h2 {
+        margin-top: 0;
+        margin-bottom: 0.75rem;
+      }
+      .checkout-modal-inner p {
+        margin-bottom: 1rem;
+      }
+      .modal-close {
+        position: absolute;
+        top: 0.9rem;
+        right: 1.1rem;
+        border: 0;
+        background: transparent;
+        color: #9ca3af;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+      .modal-close:hover {
+        color: #f9fafb;
+      }
+      .pix-box {
+        margin-top: 1.25rem;
+        padding: 1rem 1.25rem;
+        border-radius: 0.75rem;
+        background: rgba(15, 118, 110, 0.08);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        font-size: 0.9rem;
+      }
+      .pix-box pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        font-size: 0.8rem;
+        background: rgba(0, 0, 0, 0.35);
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        margin: 0.5rem 0 0.75rem;
+      }
+      .pix-box.hidden {
+        display: none;
+      }
+      .input-row {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+      .input-row input {
+        width: 100%;
+        padding: 0.65rem 0.8rem;
+        border-radius: 0.5rem;
+        border: 1px solid #1f2933;
+        background: #020617;
+        color: #e5e7eb;
+      }
+      @media (min-width: 640px) {
+        .input-row {
+          flex-direction: row;
+        }
+      }
+      .btn-small {
+        font-size: 0.85rem;
+        opacity: 0.9;
+      }
+    </style>
   </head>
+
   <body>
     <header class="site-header">
       <div class="container header-inner">
@@ -62,20 +145,20 @@
             <div class="price-box">
               <div>
                 <p class="price-label">INVESTIMENTO</p>
-                <p class="price-value">R$ 49,90</p>
+                <p class="price-value">R$ 129,00</p>
                 <p class="price-small">
                   Recebimento imediato do PDF após confirmação de pagamento.
                 </p>
               </div>
 
               <div class="cta-group">
-                <!-- ABREM O MODAL / SCRIPT -->
-                <button id="pay-pix" class="btn btn-primary">
+                <!-- BOTÕES CONTROLADOS PELO SCRIPT -->
+                <button id="pay-pix" type="button" class="btn btn-primary">
                   PAGAR AGORA VIA PIX<br />
-                  <span class="btn-small">R$ 49,90</span>
+                  <span class="btn-small">R$ 129,00</span>
                 </button>
 
-                <button id="pay-card" class="btn btn-outline">
+                <button id="pay-card" type="button" class="btn btn-outline">
                   PAGAR COM<br />CARTÃO DE CRÉDITO
                 </button>
               </div>
@@ -91,7 +174,7 @@
           <div class="hero-cover">
             <div class="cover-card">
               <img
-                src="assets/ebook-cover.webp"
+                src="assets/ebook-cover.png"
                 alt="Capa do e-book Música &amp; Ansiedade"
                 class="cover-image"
               />
@@ -262,10 +345,11 @@
           </div>
 
           <div class="cta-center">
+            <!-- SEGUNDO BOTÃO CONTROLADO PELO SCRIPT (PIX) -->
             <button
               id="pay-pix-secondary"
-              class="btn btn-primary"
               type="button"
+              class="btn btn-primary"
             >
               QUERO COMEÇAR AGORA COM PIX
             </button>
@@ -384,10 +468,11 @@
               pode levar para a vida inteira.
             </p>
           </div>
+          <!-- BOTÃO FINAL PARA CARTÃO -->
           <button
             id="pay-card-final"
-            class="btn btn-primary"
             type="button"
+            class="btn btn-primary"
           >
             GARANTIR MEU E-BOOK AGORA
           </button>
@@ -402,18 +487,80 @@
       </div>
     </footer>
 
-    <!-- LIB SUPABASE -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- MODAL DE CHECKOUT -->
+    <div id="checkout-modal" class="checkout-modal hidden">
+      <div class="checkout-modal-inner">
+        <button
+          id="modal-close"
+          class="modal-close"
+          type="button"
+          aria-label="Fechar"
+        >
+          &times;
+        </button>
+        <h2>Quase lá!</h2>
+        <p>
+          Preencha seus dados para receber o link seguro do e-book após a
+          confirmação do pagamento.
+        </p>
 
-    <!-- SCRIPT CHECKOUT / PIX / SUPABASE -->
+        <form id="checkout-form">
+          <div class="input-row">
+            <input
+              type="text"
+              id="buyer-name"
+              name="name"
+              placeholder="Seu nome completo"
+              required
+            />
+            <input
+              type="email"
+              id="buyer-email"
+              name="email"
+              placeholder="Seu melhor e-mail"
+              required
+            />
+          </div>
+
+          <p id="modal-message" class="hero-notice"></p>
+
+          <button type="submit" class="btn btn-primary">
+            Continuar para pagamento seguro
+          </button>
+        </form>
+
+        <!-- Caixa Pix (aparece só quando o método é Pix) -->
+        <div id="pix-box" class="pix-box hidden">
+          <p>
+            Seus dados foram registrados. Agora copie o código Pix abaixo e
+            pague pelo app do seu banco:
+          </p>
+          <pre id="pix-code-display"></pre>
+          <button
+            type="button"
+            id="copy-pix-code"
+            class="btn btn-outline btn-small"
+          >
+            Copiar código PIX
+          </button>
+          <p id="copy-pix-feedback" class="hero-notice"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- SE TIVER OUTROS SCRIPTS SEUS, DEIXA AQUI -->
+    <!-- <script src="script.js"></script> -->
+
+    <!-- SUPABASE + LÓGICA DE PAGAMENTO -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
     <script>
-      // CLIENTE PÚBLICO
+      // CLIENTE SUPABASE (NAVEGADOR)
       const supabase = window.supabase.createClient(
         "https://nfvbqxuwjhifrndbzmnp.supabase.co",
         "sb_publishable_s_cXvvEHtBo6qG_cSNqh6Q_vSIxQEHa"
       );
 
-      // CONFIG MERCADO PAGO
+      // MERCADO PAGO
       const MP_CARD_URL = "https://mpago.la/1qEwwRM";
       const PIX_COPY_CODE =
         "00020126670014br.gov.bcb.pix013659669241-d4c7-4964-b437-8ff9ca16e2ab0205venda5204000053039865406129.005802BR5925Fernanda Franzoni Zaguini6008Brasilia62080504mpda6304A395";
@@ -439,33 +586,30 @@
 
       let currentPaymentMethod = null;
 
-      // Abrir modal
       function openModal(method) {
         currentPaymentMethod = method;
         modal.classList.remove("hidden");
         pixBox.classList.add("hidden");
-        modalMessage.textContent =
-          "Preencha seus dados para receber o e-book.";
+        modalMessage.textContent = "";
         checkoutForm.reset();
       }
 
-      // Fechar modal
       function closeModal() {
         modal.classList.add("hidden");
       }
 
-      // Eventos dos botões
+      // Botões → abre modal
       payPixBtn?.addEventListener("click", () => openModal("pix"));
       payPixSecondaryBtn?.addEventListener("click", () => openModal("pix"));
       payCardBtn?.addEventListener("click", () => openModal("card"));
       payCardFinalBtn?.addEventListener("click", () => openModal("card"));
       modalClose?.addEventListener("click", closeModal);
 
-      modal?.addEventListener("click", (e) => {
+      modal.addEventListener("click", (e) => {
         if (e.target === modal) closeModal();
       });
 
-      // FORMULÁRIO → criar pedido no Supabase
+      // Formulário → cria pedido no Supabase
       checkoutForm?.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -497,6 +641,7 @@
           .select()
           .single();
 
+        // guarda e-mail no navegador para a página obrigado.html
         localStorage.setItem("buyer_email", email);
 
         if (error) {
@@ -506,7 +651,8 @@
         }
 
         if (currentPaymentMethod === "card") {
-          modalMessage.textContent = "Redirecionando para pagamento seguro...";
+          modalMessage.textContent =
+            "Redirecionando para pagamento seguro...";
           window.location.href = MP_CARD_URL;
         }
 
@@ -522,59 +668,13 @@
       copyPixBtn?.addEventListener("click", async () => {
         try {
           await navigator.clipboard.writeText(PIX_COPY_CODE);
-          copyPixFeedback.textContent = "Código Pix copiado!";
+          copyPixFeedback.textContent =
+            "Código Pix copiado! Agora é só colar no app do seu banco.";
         } catch {
-          copyPixFeedback.textContent = "Não foi possível copiar.";
+          copyPixFeedback.textContent =
+            "Não foi possível copiar automaticamente. Copie manualmente, por favor.";
         }
       });
     </script>
-
-    <!-- MODAL DE CHECKOUT -->
-    <div id="checkout-modal" class="modal-backdrop hidden">
-      <div class="modal-panel">
-        <button id="modal-close" class="modal-close" type="button">×</button>
-        <h2 class="modal-title">Finalizar compra</h2>
-        <p id="modal-message" class="modal-message">
-          Preencha seus dados para receber o e-book.
-        </p>
-
-        <form id="checkout-form" class="modal-form">
-          <label class="field">
-            <span>Nome completo</span>
-            <input
-              id="buyer-name"
-              type="text"
-              autocomplete="name"
-              required
-            />
-          </label>
-
-          <label class="field">
-            <span>E-mail</span>
-            <input
-              id="buyer-email"
-              type="email"
-              autocomplete="email"
-              required
-            />
-          </label>
-
-          <button type="submit" class="btn btn-primary btn-full">
-            Continuar
-          </button>
-        </form>
-
-        <div id="pix-box" class="pix-box hidden">
-          <p>
-            Copie o código Pix abaixo e faça o pagamento no seu app bancário:
-          </p>
-          <pre id="pix-code-display" class="pix-code"></pre>
-          <button id="copy-pix-code" class="btn btn-outline btn-sm" type="button">
-            Copiar código Pix
-          </button>
-          <p id="copy-pix-feedback" class="pix-feedback"></p>
-        </div>
-      </div>
-    </div>
   </body>
 </html>
