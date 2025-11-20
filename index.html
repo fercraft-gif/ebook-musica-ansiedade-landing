@@ -9,7 +9,74 @@
       content="E-book Música & Ansiedade — um guia simples, sensível e direto para usar a música a favor da sua mente."
     />
     <link rel="stylesheet" href="styles.css" />
+
+    <!-- Estilos básicos do modal de checkout -->
+    <style>
+      .checkout-modal {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 999;
+      }
+      .checkout-modal.hidden {
+        display: none;
+      }
+      .checkout-modal-inner {
+        position: relative;
+        max-width: 480px;
+        width: 92%;
+        background: #071820;
+        color: #f9fafb;
+        padding: 2rem 2.25rem;
+        border-radius: 1.25rem;
+        box-shadow: 0 22px 45px rgba(0, 0, 0, 0.6);
+      }
+      .checkout-modal-inner h2 {
+        margin-top: 0;
+        margin-bottom: 0.75rem;
+      }
+      .checkout-modal-inner p {
+        margin-bottom: 1rem;
+      }
+      .modal-close {
+        position: absolute;
+        top: 0.9rem;
+        right: 1.1rem;
+        border: 0;
+        background: transparent;
+        color: #9ca3af;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+      .modal-close:hover {
+        color: #f9fafb;
+      }
+      .pix-box {
+        margin-top: 1.25rem;
+        padding: 1rem 1.25rem;
+        border-radius: 0.75rem;
+        background: rgba(15, 118, 110, 0.08);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        font-size: 0.9rem;
+      }
+      .pix-box pre {
+        white-space: pre-wrap;
+        word-break: break-all;
+        font-size: 0.8rem;
+        background: rgba(0, 0, 0, 0.35);
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        margin: 0.5rem 0 0.75rem;
+      }
+      .pix-box.hidden {
+        display: none;
+      }
+    </style>
   </head>
+
   <body>
     <header class="site-header">
       <div class="container header-inner">
@@ -43,68 +110,53 @@
 
             <p class="hero-subtitle">
               Um guia simples, sensível e direto para usar a música a favor da
-              sua mente — mesmo nos dias em que tudo parece demais.
-            <p>
-              Se você sente que “tá tudo demais” e gostaria de um jeito gentil de voltar para si, este livro é para você. Sem perfeccionismo, sem promessa milagrosa, apenas uma ferramenta real para o seu cotidiano.
-            <p>
-              Se você é ansiosa(o), não precisa de mil teorias, precisa de práticas simples, possíveis e que respeitem o seu ritmo.
-            <p>
-              Um guia simples, sensível e direto para usar a música a favor da sua mente, mesmo nos dias em que tudo parece demais.
-            <p>
-              E-book da série Música & Medicina, com dicas práticas para reduzir a ansiedade no cotidiano real.
+              sua mente, mesmo nos dias em que tudo parece demais.
             </p>
-              <div>
-                <p class="price-label">INVESTIMENTO</p>
-                <p class="price-value">R$ 129,00</p>
-                <p class="price-small">
-                  Recebimento imediato do PDF após confirmação de pagamento.
-                </p>
-              </div>
 
-              <form id="pix-form" class="cta-group">
-                <div class="input-row">
-                  <input
-                    type="text"
-                    id="buyer-name"
-                    name="name"
-                    placeholder="Seu nome completo"
-                    required
-                  />
-                 <input
-                    type="email"
-                    id="buyer-email"
-                    name="email"
-                    placeholder="Seu melhor e-mail"
-                    required  
-                  />
-                 </div>
+            <div>
+              <p class="price-label">INVESTIMENTO</p>
+              <p class="price-value">R$ 129,00</p>
+              <p class="price-small">
+                Recebimento imediato do PDF após confirmação de pagamento.
+              </p>
+            </div>
 
-                <button type="submit" class="btn btn-primary">
-                  PAGAR AGORA VIA PIX<br />
-                  <span class="btn-small">R$ 129,00</span>
-                </button>
-                <button type="button" id="copy-pix-code" class="btn btn-outline btn-small">
-                  Copiar código PIX
-                </button>
-                <p id="copy-pix-feedback" class="hero-notice"></p>
+            <!-- BOTÕES DE PAGAMENTO (sem formulário visível) -->
+            <div class="cta-group">
+              <button id="pay-pix" class="btn btn-primary">
+                PAGAR AGORA VIA PIX<br />
+                <span class="btn-small">R$ 129,00</span>
+              </button>
 
-
-                <a 
-                  href="59669241-d4c7-4964-b437-8ff9ca16e2ab"
-                  class="btn btn-outline"
-                  target="_blank"
-                  rel="noreferrer"
-                 > 
-                  PAGAR COM<br />CARTÃO DE CRÉDITO
-                </a>
-              </form>
-              
-            <p id="pix-message" class="hero-notice"></p>
+              <button id="pay-card" class="btn btn-outline">
+                PAGAR COM<br />CARTÃO DE CRÉDITO
+              </button>
+            </div>
 
             <p class="hero-notice">
               Após o pagamento, você recebe um link seguro com o PDF do e-book
               e o checklist bônus.
             </p>
+
+            <!-- BLOCO DE TEXTO QUE DEVE VIR APÓS OS BOTÕES -->
+            <div class="hero-extra">
+              <p>
+                Se você sente que “tá tudo demais” e gostaria de um jeito gentil
+                de voltar para si, este livro é para você. Sem perfeccionismo,
+                sem promessa milagrosa, apenas uma ferramenta real para o seu
+                cotidiano.
+              </p>
+              <p>
+                Se você é ansiosa(o), não precisa de mil teorias, precisa de
+                práticas simples, possíveis e que respeitem o seu ritmo.
+              </p>
+              <p>
+                Um guia simples, sensível e direto para usar a música a favor da
+                sua mente, mesmo nos dias em que tudo parece demais. E-book da
+                série Música &amp; Medicina, com dicas práticas para reduzir a
+                ansiedade no cotidiano real.
+              </p>
+            </div>
           </div>
 
           <!-- MOCKUP CAPA -->
@@ -233,15 +285,18 @@
                 <li>• Quem vive com o corpo em alerta e a mente acelerada.</li>
                 <li>• Quem ama música, mesmo sem entender teoria.</li>
                 <li>• Quem busca ferramentas naturais e seguras.</li>
-                <li>• Profissionais de saúde e educação que desejam se cuidar.</li>
+                <li>
+                  • Profissionais de saúde e educação que desejam se cuidar.
+                </li>
               </ul>
             </div>
 
             <div class="split-col">
               <p class="text-block">
-                Se você sente que “tá tudo demais” e gostaria de um jeito
-                gentil de voltar para si, este livro é para você. Sem
-                perfeccionismo, sem promessa milagrosa, apenas uma ferramenta real para o seu cotidiano.
+                Se você sente que “tá tudo demais” e gostaria de um jeito gentil
+                de voltar para si, este livro é para você. Sem perfeccionismo,
+                sem promessa milagrosa, apenas uma ferramenta real para o seu
+                cotidiano.
               </p>
             </div>
           </div>
@@ -281,14 +336,9 @@
           </div>
 
           <div class="cta-center">
-            <a
-              href="59669241-d4c7-4964-b437-8ff9ca16e2ab"
-              class="btn btn-primary"
-              target="_blank"
-              rel="noreferrer"
-            >
+            <button id="pay-pix-secondary" class="btn btn-primary">
               QUERO COMEÇAR AGORA COM PIX
-            </a>
+            </button>
           </div>
         </div>
       </section>
@@ -317,15 +367,18 @@
           <div class="guarantee-box">
             <h2 class="section-title small">Garantia simbólica</h2>
             <p>
-              Se você sentir que o e-book não te ajudou em nada, basta me escrever no e-mail: mtfernandazaguini@gmail.com. Prefiro que você fique bem do que forçar uma venda.
+              Se você sentir que o e-book não te ajudou em nada, basta me
+              escrever no e-mail: mtfernandazaguini@gmail.com. Prefiro que você
+              fique bem do que forçar uma venda.
             </p>
-              <p class="guarantee-note">
-                Este projeto existe para cuidar de pessoas, a venda é consequência.
-              </p>
+            <p class="guarantee-note">
+              Este projeto existe para cuidar de pessoas, a venda é
+              consequência.
+            </p>
           </div>
         </div>
       </section>
-                Maneiras de organizar emoções com música, melodias, ritmos e
+
       <!-- SOBRE A AUTORA -->
       <section id="sobre" class="section section-alt">
         <div class="container about-grid">
@@ -340,13 +393,15 @@
           <div class="about-text">
             <h2 class="section-title">Sobre a autora</h2>
             <p>
-              Sou Mts. Fernanda Franzoni Zaguini, musicoterapeuta há mais de
-              10 anos, mestre e doutoranda em Educação pela UFPR. Trabalho com
+              Sou Mts. Fernanda Franzoni Zaguini, musicoterapeuta há mais de 10
+              anos, mestre e doutoranda em Educação pela UFPR. Trabalho com
               saúde mental de adultos e com o desenvolvimento de crianças,
               unindo música, emoção e neurociência.
             </p>
             <p>
-              Este e-book nasce da clínica, da pesquisa e da arte, para que pessoas ansiosas tenham acesso a um cuidado simples, acessível e profundamente humano.
+              Este e-book nasce da clínica, da pesquisa e da arte, para que
+              pessoas ansiosas tenham acesso a um cuidado simples, acessível e
+              profundamente humano.
             </p>
           </div>
         </div>
@@ -359,15 +414,24 @@
           <div class="faq-list">
             <details open>
               <summary>Em qual formato recebo o e-book?</summary>
-              <p>Você recebe o e-book em formato PDF, que pode ser lido no celular, tablet ou computador.</p>
+              <p>
+                Você recebe o e-book em formato PDF, que pode ser lido no
+                celular, tablet ou computador.
+              </p>
             </details>
             <details>
               <summary>O acesso é imediato?</summary>
-              <p>Sim. Após a confirmação do pagamento, o sistema libera automaticamente o link de download.</p>
+              <p>
+                Sim. Após a confirmação do pagamento, o sistema libera
+                automaticamente o link de download.
+              </p>
             </details>
             <details>
               <summary>Posso pagar com cartão ou só PIX?</summary>
-              <p>Você pode escolher PIX ou cartão de crédito, conforme for melhor para você.</p>
+              <p>
+                Você pode escolher PIX ou cartão de crédito, conforme for melhor
+                para você.
+              </p>
             </details>
             <details>
               <summary>Posso compartilhar o arquivo com outras pessoas?</summary>
@@ -392,14 +456,9 @@
               pode levar para a vida inteira.
             </p>
           </div>
-          <a
-            href="https://mpago.la/1qEwwRM"
-            class="btn btn-primary"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <button id="pay-card-final" class="btn btn-primary">
             GARANTIR MEU E-BOOK AGORA
-          </a>
+          </button>
         </div>
       </section>
     </main>
@@ -411,107 +470,216 @@
       </div>
     </footer>
 
-<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
-<script>
-  // 🔐 TROCAR PELOS DADOS DO SEU PROJETO SUPABASE
-  const SUPABASE_URL = "https://nfvbqxuwjhifrndbzmnp.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mdmJxeHV3amhpZnJuZGJ6bW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0MzQwMDgsImV4cCI6MjA3OTAxMDAwOH0.0C_nquQyO3btIDzNhfpNQ-ngmlDE8xUdvgA_4q9sDM8";
+    <!-- MODAL DE CHECKOUT (formulário só aparece após clicar em um botão de pagamento) -->
+    <div id="checkout-modal" class="checkout-modal hidden">
+      <div class="checkout-modal-inner">
+        <button id="modal-close" class="modal-close" aria-label="Fechar">
+          &times;
+        </button>
+        <h2>Quase lá!</h2>
+        <p>
+          Preencha seus dados para receber o link seguro do e-book após a
+          confirmação do pagamento.
+        </p>
 
-  // Código Pix "copia e cola" gerado no Mercado Pago
-const PIX_COPY_CODE =
-  "00020126670014br.gov.bcb.pix013659669241-d4c7-4964-b437-8ff9ca16e2ab0205venda5204000053039865406129.005802BR5925Fernanda Franzoni Zaguini6008Brasilia62080504mpda6304A395";
+        <form id="checkout-form">
+          <div class="input-row">
+            <input
+              type="text"
+              id="buyer-name"
+              name="name"
+              placeholder="Seu nome completo"
+              required
+            />
+            <input
+              type="email"
+              id="buyer-email"
+              name="email"
+              placeholder="Seu melhor e-mail"
+              required
+            />
+          </div>
 
-// Botão para copiar código Pix
-const copyPixBtn = document.getElementById("copy-pix-code");
-const copyPixFeedback = document.getElementById("copy-pix-feedback");
+          <p id="modal-message" class="hero-notice"></p>
 
-if (copyPixBtn) {
-  copyPixBtn.addEventListener("click", async () => {
-    try {
-      await navigator.clipboard.writeText(PIX_COPY_CODE);
-      copyPixFeedback.textContent =
-        "Código Pix copiado. Agora é só colar no app do seu banco.";
-    } catch (err) {
-      console.error(err);
-      copyPixFeedback.textContent =
-        "Não consegui copiar automaticamente. Tente copiar manualmente.";
-    }
-  });
-}
+          <button type="submit" class="btn btn-primary">
+            Continuar para pagamento seguro
+          </button>
+        </form>
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+        <!-- Caixa Pix (aparece só quando o método é Pix e após salvar no Supabase) -->
+        <div id="pix-box" class="pix-box hidden">
+          <p>
+            Seus dados foram registrados. Agora copie o código Pix abaixo e
+            pague pelo app do seu banco:
+          </p>
+          <pre id="pix-code-display"></pre>
+          <button
+            type="button"
+            id="copy-pix-code"
+            class="btn btn-outline btn-small"
+          >
+            Copiar código PIX
+          </button>
+          <p id="copy-pix-feedback" class="hero-notice"></p>
+        </div>
+      </div>
+    </div>
 
-  msgEl.textContent = "Registrando seus dados com segurança...";
+    <!-- SUPABASE + LÓGICA DE PAGAMENTO -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script>
+      // 🔐 SUPABASE
+      const SUPABASE_URL = "https://nfvbqxuwjhifrndbzmnp.supabase.co";
+      const SUPABASE_ANON_KEY =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mdmJxeHV3amhpZnJuZGJ6bW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0MzQwMDgsImV4cCI6MjA3OTAxMDAwOH0.0C_nquQyO3btIDzNhfpNQ-ngmlDE8xUdvgA_4q9sDM8";
 
-  const name = document.getElementById("buyer-name").value.trim();
-  const email = document.getElementById("buyer-email").value.trim();
+      const { createClient } = supabase;
+      const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  if (!name || !email) {
-    msgEl.textContent = "Preencha nome e e-mail para continuar.";
-    return;
-  }
+      // 💳 MERCADO PAGO
+      const MP_PUBLIC_KEY =
+        "APP_USR-8de7bb17-f084-454e-9453-2f9ed1ab8f46"; // reservado para integração futura
+      const MP_CARD_URL = "https://mpago.la/1qEwwRM";
 
-  try {
-    const { data, error } = await supabase
-      .from("ebook_order")
-      .insert([{ name, email, status: "pending" }])
-      .select()
-      .single();
+      // PIX "copia e cola" do Mercado Pago
+      const PIX_COPY_CODE =
+        "00020126670014br.gov.bcb.pix013659669241-d4c7-4964-b437-8ff9ca16e2ab0205venda5204000053039865406129.005802BR5925Fernanda Franzoni Zaguini6008Brasilia62080504mpda6304A395";
 
-    if (error) {
-      console.error(error);
-      msgEl.textContent =
-        "Erro ao registrar seus dados. Tente novamente em alguns instantes.";
-      return;
-    }
+      // ELEMENTOS
+      const payPixBtn = document.getElementById("pay-pix");
+      const payPixSecondaryBtn = document.getElementById("pay-pix-secondary");
+      const payCardBtn = document.getElementById("pay-card");
+      const payCardFinalBtn = document.getElementById("pay-card-final");
 
-    msgEl.textContent = "Redirecionando para pagamento seguro...";
-    window.location.href = MP_PIX_URL;
+      const modal = document.getElementById("checkout-modal");
+      const modalClose = document.getElementById("modal-close");
+      const checkoutForm = document.getElementById("checkout-form");
+      const buyerNameInput = document.getElementById("buyer-name");
+      const buyerEmailInput = document.getElementById("buyer-email");
+      const modalMessage = document.getElementById("modal-message");
 
-  } catch (err) {
-    console.error(err);
-    msgEl.textContent =
-      "Ocorreu um erro inesperado. Tente novamente em alguns minutos.";
-  }
-});
+      const pixBox = document.getElementById("pix-box");
+      const pixCodeDisplay = document.getElementById("pix-code-display");
+      const copyPixBtn = document.getElementById("copy-pix-code");
+      const copyPixFeedback = document.getElementById("copy-pix-feedback");
 
-    event.preventDefault();
+      let currentPaymentMethod = null; // "pix" | "card"
 
-    msgEl.textContent = "Registrando seus dados com segurança...";
-
-    const name = document.getElementById("buyer-name").value.trim();
-    const email = document.getElementById("buyer-email").value.trim();
-
-    if (!name || !email) {
-      msgEl.textContent = "Preencha nome e e-mail para continuar.";
-      return;
-    }
-
-    try {
-      // 1) grava pré-cadastro na tabela ebook_order
-      const { data, error } = await supabase
-        .from("ebook_order")
-        .insert([{ name, email, status: "pending" }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error(error);
-        msgEl.textContent =
-          "Erro ao registrar seus dados. Tente novamente em alguns instantes.";
-        return;
+      function openModal(method) {
+        currentPaymentMethod = method;
+        modal.classList.remove("hidden");
+        pixBox.classList.add("hidden");
+        copyPixFeedback.textContent = "";
+        modalMessage.textContent = "";
+        checkoutForm.reset();
+        buyerNameInput.focus();
       }
 
-      // No futuro vamos usar data.id como referência no webhook.
-      msgEl.textContent = "Redirecionando para pagamento seguro...";
-      window.location.href = MP_PIX_URL;
-    } catch (err) {
-      console.error(err);
-      msgEl.textContent =
-        "Ocorreu um erro inesperado. Tente novamente em alguns minutos.";
-    }
-  });
- </script>
- </body>
- </html>
+      function closeModal() {
+        modal.classList.add("hidden");
+      }
+
+      // Abrir modal a partir de qualquer botão de pagamento
+      if (payPixBtn) {
+        payPixBtn.addEventListener("click", () => openModal("pix"));
+      }
+      if (payPixSecondaryBtn) {
+        payPixSecondaryBtn.addEventListener("click", () => openModal("pix"));
+      }
+      if (payCardBtn) {
+        payCardBtn.addEventListener("click", () => openModal("card"));
+      }
+      if (payCardFinalBtn) {
+        payCardFinalBtn.addEventListener("click", () => openModal("card"));
+      }
+
+      if (modalClose) {
+        modalClose.addEventListener("click", closeModal);
+      }
+      // Fecha modal clicando fora (backdrop)
+      modal.addEventListener("click", (event) => {
+        if (event.target === modal) {
+          closeModal();
+        }
+      });
+
+      // Envio do formulário (registrar no Supabase e encaminhar)
+      if (checkoutForm) {
+        checkoutForm.addEventListener("submit", async (event) => {
+          event.preventDefault();
+
+          const name = buyerNameInput.value.trim();
+          const email = buyerEmailInput.value.trim();
+
+          if (!name || !email) {
+            modalMessage.textContent =
+              "Preencha nome e e-mail para continuar.";
+            return;
+          }
+
+          if (!currentPaymentMethod) {
+            modalMessage.textContent =
+              "Escolha primeiro uma forma de pagamento.";
+            return;
+          }
+
+          modalMessage.textContent =
+            "Registrando seus dados com segurança...";
+
+          try {
+            const { data, error } = await supabaseClient
+              .from("ebook_order")
+              .insert([
+                {
+                  name,
+                  email,
+                  payment_method: currentPaymentMethod,
+                  status: "pending",
+                },
+              ])
+              .select()
+              .single();
+
+            if (error) {
+              console.error(error);
+              modalMessage.textContent =
+                "Erro ao registrar seus dados. Tente novamente em alguns instantes.";
+              return;
+            }
+
+            if (currentPaymentMethod === "card") {
+              modalMessage.textContent =
+                "Redirecionando para pagamento seguro...";
+              window.location.href = MP_CARD_URL;
+            } else if (currentPaymentMethod === "pix") {
+              modalMessage.textContent =
+                "Dados registrados. Agora faça o pagamento via Pix.";
+              pixCodeDisplay.textContent = PIX_COPY_CODE;
+              pixBox.classList.remove("hidden");
+            }
+          } catch (err) {
+            console.error(err);
+            modalMessage.textContent =
+              "Ocorreu um erro inesperado. Tente novamente em alguns minutos.";
+          }
+        });
+      }
+
+      // Copiar código Pix
+      if (copyPixBtn) {
+        copyPixBtn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(PIX_COPY_CODE);
+            copyPixFeedback.textContent =
+              "Código Pix copiado. Agora é só colar no app do seu banco.";
+          } catch (err) {
+            console.error(err);
+            copyPixFeedback.textContent =
+              "Não consegui copiar automaticamente. Tente copiar manualmente.";
+          }
+        });
+      }
+    </script>
+  </body>
+</html>
