@@ -1,19 +1,136 @@
 <!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Obrigado!</title>
-    <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-    <main style="text-align:center; margin-top:5rem;">
-        <h1>Obrigado por baixar o ebook!</h1>
-        <p>O arquivo está sendo baixado. Aproveite a leitura e cuide do seu bem-estar com música!</p>
-        <a href="index.html">Voltar para a página inicial</a>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Obrigada(o) · Música & Ansiedade</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Obrigado pela compra do e-book Música & Ansiedade. Baixe agora o seu PDF."
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <div class="logo-block">
+          <div class="logo-mark">OA</div>
+          <div class="logo-text">
+            <span class="logo-small">Octopus Axis E-books</span>
+            <span class="logo-sub">Série Música &amp; Medicina</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- SEÇÃO PRINCIPAL DE OBRIGADO -->
+      <section class="section hero">
+        <div class="container hero-grid">
+          <!-- TEXTO -->
+          <div class="hero-text">
+            <span class="pill">Pagamento confirmado</span>
+
+            <h1 class="hero-title">Obrigada(o) pela sua compra ✨</h1>
+
+            <p class="hero-subtitle">
+              Seu pagamento do e-book <strong>Música &amp; Ansiedade</strong> foi registrado
+              com sucesso.
+            </p>
+
+            <p class="hero-tagline">
+              Agora é só baixar o PDF e começar a usar a música como aliada na redução da
+              ansiedade no seu dia a dia.
+            </p>
+
+            <!-- BLOCO DOWNLOAD -->
+            <div class="price-box">
+              <div>
+                <p class="price-label">SEU E-BOOK</p>
+                <p class="price-value">Música &amp; Ansiedade</p>
+                <p class="price-small">
+                  Formato PDF · Acesso permanente · Uso pessoal.
+                </p>
+              </div>
+
+              <div class="cta-group">
+                <!-- BOTÃO PRINCIPAL DE DOWNLOAD -->
+                <a
+                  id="download-ebook"
+                  href="assets/musica-e-ansiedade.pdf"
+                  class="btn btn-primary"
+                  download="Musica-e-Ansiedade.pdf"
+                >
+                  BAIXAR E-BOOK EM PDF
+                </a>
+
+                <!-- BOTÃO SECUNDÁRIO: ABRIR NO NAVEGADOR -->
+                <a
+                  href="assets/musica-e-ansiedade.pdf"
+                  class="btn btn-outline"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  ABRIR EM NOVA ABA
+                </a>
+              </div>
+            </div>
+
+            <p class="hero-notice">
+              Se tiver qualquer problema com o download, envie um e-mail para
+              <strong>mt.fernandazaguini@gmail.com</strong> com o comprovante de pagamento.
+            </p>
+          </div>
+
+          <!-- LADO DIREITO: VISUAL DA CAPA -->
+          <div class="hero-cover">
+            <div class="cover-card">
+              <img
+                src="assets/ebook-cover.png.webp"
+                alt="Capa do e-book Música &amp; Ansiedade"
+                class="cover-image"
+              />
+              <div class="cover-gradient"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SEÇÃO EXTRA OPCIONAL: ORIENTAÇÕES -->
+      <section class="section section-alt">
+        <div class="container">
+          <h2 class="section-title">Não esqueça de se cuidar com carinho</h2>
+          <p class="section-intro">
+            Guarde o PDF em um lugar fácil de encontrar (celular, tablet ou computador) e
+            reserve momentos tranquilos para ler com calma. Voltando a ele sempre que
+            precisar organizar o corpo, a respiração e as emoções.
+          </p>
+        </div>
+      </section>
     </main>
-    <footer>
-        <p>&copy; 2025 Música & Ansiedade. Todos os direitos reservados.</p>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>© 2025 Octopus Axis — Música &amp; Medicina.</p>
+        <p>Contato: mt.fernandazaguini@gmail.com</p>
+      </div>
     </footer>
-</body>
+
+    <!-- SCRIPT PARA INICIAR O DOWNLOAD AUTOMÁTICO AO CHEGAR NA PÁGINA -->
+    <script>
+      window.addEventListener("load", function () {
+        var link = document.getElementById("download-ebook");
+        if (!link) return;
+
+        // tenta abrir o PDF em nova aba
+        var opened = window.open(link.href, "_blank");
+
+        // se o navegador bloquear pop-up, ainda fica o botão manual
+        if (!opened) {
+          // como fallback, dispara o clique no próprio link
+          link.click();
+        }
+      });
+    </script>
+  </body>
 </html>
