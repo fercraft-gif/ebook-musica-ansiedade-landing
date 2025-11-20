@@ -57,7 +57,7 @@
                 <!-- BOTÃO PRINCIPAL DE DOWNLOAD -->
                 <a
                   id="download-ebook"
-                  href="assets/musica-e-ansiedade.pdf"
+                  href="musica-e-ansiedade.pdf.pdf"
                   class="btn btn-primary"
                   download="Musica-e-Ansiedade.pdf"
                 >
@@ -66,7 +66,7 @@
 
                 <!-- BOTÃO SECUNDÁRIO: ABRIR NO NAVEGADOR -->
                 <a
-                  href="assets/musica-e-ansiedade.pdf"
+                  href="musica-e-ansiedade.pdf.pdf"
                   class="btn btn-outline"
                   target="_blank"
                   rel="noreferrer"
@@ -86,7 +86,7 @@
           <div class="hero-cover">
             <div class="cover-card">
               <img
-                src="assets/ebook-cover.png.webp"
+                src="assets/ebook-cover.png"
                 alt="Capa do e-book Música &amp; Ansiedade"
                 class="cover-image"
               />
@@ -116,19 +116,18 @@
       </div>
     </footer>
 
-    <!-- SCRIPT PARA INICIAR O DOWNLOAD AUTOMÁTICO AO CHEGAR NA PÁGINA -->
+    <!-- SCRIPT PARA ABRIR O PDF AUTOMATICAMENTE -->
     <script>
-      window.addEventListener("load", function () {
-        var link = document.getElementById("download-ebook");
+      window.addEventListener("load", () => {
+        const link = document.getElementById("download-ebook");
         if (!link) return;
 
         // tenta abrir o PDF em nova aba
-        var opened = window.open(link.href, "_blank");
+        const opened = window.open(link.href, "_blank");
 
-        // se o navegador bloquear pop-up, ainda fica o botão manual
+        // fallback se bloqueado por pop-up
         if (!opened) {
-          // como fallback, dispara o clique no próprio link
-          link.click();
+          setTimeout(() => link.click(), 500);
         }
       });
     </script>
