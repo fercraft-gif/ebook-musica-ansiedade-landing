@@ -61,28 +61,45 @@
                 </p>
               </div>
 
-              <div class="cta-group">
-                <!-- TROCAR OS LINKS AQUI -->
-                <a
-                 href="https://mpago.la/1qEwwRM"
-                  class="btn btn-primary"
-                  target="_blank"
-                  rel="noreferrer"
-                >
+              <form id="pix-form" class="cta-group">
+                <div class="input-row">
+                  <input
+                    type="text"
+                    id="buyer-name"
+                    name="name"
+                    placeholder="Seu nome completo"
+                    required
+                  />
+                 <input
+                    type="email"
+                    id="buyer-email"
+                    name="email"
+                    placeholder="Seu melhor e-mail"
+                    required  
+                  />
+                 </div>
+
+                <button type="submit" class="btn btn-primary">
                   PAGAR AGORA VIA PIX<br />
                   <span class="btn-small">R$ 129,00</span>
-                </a>
+                </button>
+                <button type="button" id="copy-pix-code" class="btn btn-outline btn-small">
+                  Copiar código PIX
+                </button>
+                <p id="copy-pix-feedback" class="hero-notice"></p>
 
-                <a
-                  href="https://mpago.la/1qEwwRM"
+
+                <a 
+                  href="59669241-d4c7-4964-b437-8ff9ca16e2ab"
                   class="btn btn-outline"
                   target="_blank"
                   rel="noreferrer"
-                >
+                 > 
                   PAGAR COM<br />CARTÃO DE CRÉDITO
                 </a>
-              </div>
-            </div>
+              </form>
+              
+            <p id="pix-message" class="hero-notice"></p>
 
             <p class="hero-notice">
               Após o pagamento, você recebe um link seguro com o PDF do e-book
@@ -265,7 +282,7 @@
 
           <div class="cta-center">
             <a
-              href="https://mpago.la/1qEwwRM"
+              href="59669241-d4c7-4964-b437-8ff9ca16e2ab"
               class="btn btn-primary"
               target="_blank"
               rel="noreferrer"
@@ -394,6 +411,107 @@
       </div>
     </footer>
 
-    <script src="script.js"></script>
-  </body>
-</html>
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script>
+  // 🔐 TROCAR PELOS DADOS DO SEU PROJETO SUPABASE
+  const SUPABASE_URL = "https://nfvbqxuwjhifrndbzmnp.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mdmJxeHV3amhpZnJuZGJ6bW5wIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM0MzQwMDgsImV4cCI6MjA3OTAxMDAwOH0.0C_nquQyO3btIDzNhfpNQ-ngmlDE8xUdvgA_4q9sDM8";
+
+  // Código Pix "copia e cola" gerado no Mercado Pago
+const PIX_COPY_CODE =
+  "00020126670014br.gov.bcb.pix013659669241-d4c7-4964-b437-8ff9ca16e2ab0205venda5204000053039865406129.005802BR5925Fernanda Franzoni Zaguini6008Brasilia62080504mpda6304A395";
+
+// Botão para copiar código Pix
+const copyPixBtn = document.getElementById("copy-pix-code");
+const copyPixFeedback = document.getElementById("copy-pix-feedback");
+
+if (copyPixBtn) {
+  copyPixBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(PIX_COPY_CODE);
+      copyPixFeedback.textContent =
+        "Código Pix copiado. Agora é só colar no app do seu banco.";
+    } catch (err) {
+      console.error(err);
+      copyPixFeedback.textContent =
+        "Não consegui copiar automaticamente. Tente copiar manualmente.";
+    }
+  });
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  msgEl.textContent = "Registrando seus dados com segurança...";
+
+  const name = document.getElementById("buyer-name").value.trim();
+  const email = document.getElementById("buyer-email").value.trim();
+
+  if (!name || !email) {
+    msgEl.textContent = "Preencha nome e e-mail para continuar.";
+    return;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("ebook_order")
+      .insert([{ name, email, status: "pending" }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error(error);
+      msgEl.textContent =
+        "Erro ao registrar seus dados. Tente novamente em alguns instantes.";
+      return;
+    }
+
+    msgEl.textContent = "Redirecionando para pagamento seguro...";
+    window.location.href = MP_PIX_URL;
+
+  } catch (err) {
+    console.error(err);
+    msgEl.textContent =
+      "Ocorreu um erro inesperado. Tente novamente em alguns minutos.";
+  }
+});
+
+    event.preventDefault();
+
+    msgEl.textContent = "Registrando seus dados com segurança...";
+
+    const name = document.getElementById("buyer-name").value.trim();
+    const email = document.getElementById("buyer-email").value.trim();
+
+    if (!name || !email) {
+      msgEl.textContent = "Preencha nome e e-mail para continuar.";
+      return;
+    }
+
+    try {
+      // 1) grava pré-cadastro na tabela ebook_order
+      const { data, error } = await supabase
+        .from("ebook_order")
+        .insert([{ name, email, status: "pending" }])
+        .select()
+        .single();
+
+      if (error) {
+        console.error(error);
+        msgEl.textContent =
+          "Erro ao registrar seus dados. Tente novamente em alguns instantes.";
+        return;
+      }
+
+      // No futuro vamos usar data.id como referência no webhook.
+      msgEl.textContent = "Redirecionando para pagamento seguro...";
+      window.location.href = MP_PIX_URL;
+    } catch (err) {
+      console.error(err);
+      msgEl.textContent =
+        "Ocorreu um erro inesperado. Tente novamente em alguns minutos.";
+    }
+  });
+ </script>
+ </body>
+ </html>
