@@ -1,9 +1,9 @@
 {
-  "name": "ebook-musica-ansiedade-landing",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
+  "nome": "ebook-musica-ansiedade-landing",
+  "versao": "1.0.0",
+  "tipo": "modulo",
+  "dependencias": {
     "@supabase/supabase-js": "^2.39.3",
-    "resend": "^0.6.5"
+    "resend": "^4.0.0"
   }
 }
