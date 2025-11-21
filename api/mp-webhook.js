@@ -48,29 +48,61 @@ export default async function handler(req, res) {
     if (!payerEmail) {
       console.error("Pagamento aprovado SEM e-mail. ID:", paymentId);
       return res
-        .status(500)
-        .json({ error: "Pagamento sem e-mail do pagador" });
-    }
+        // api/mp-webhook.js
+        import mercadopago from 'mercadopago';
+        import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
-    // 4. Atualiza pedido no Supabase
-    const { error } = await supabase
-      .from("ebo ok_order")
-      .update({
-        status: "paid",
-        download_allowed: true,
-        mp_payment: paymentId,
-      })
-      .eq("email", payerEmail)
-      .eq("status", "pending");
+        mercadopago.configure({
+          access_token: process.env.MP_ACCESS_TOKEN,
+        });
 
-    if (error) {
-      console.error("Erro ao atualizar Supabase:", error);
-      return res.status(500).json({ error: "Supabase update failed" });
-    }
+        export default async function handler(req, res) {
+          // MP pode bater com GET em testes → responde OK
+          if (req.method !== 'POST') {
+            return res.status(200).send('OK');
+          }
 
-    return res.status(200).json({ ok: true });
-  } catch (e) {
-    console.error("ERRO NO WEBHOOK:", e);
-    return res.status(500).json({ error: "webhook failed" });
-  }
-}
+          try {
+            const { type, data } = req.body;
+
+            if (type !== 'payment' || !data?.id) {
+              console.log('Webhook ignorado', req.body);
+              return res.status(200).send('IGNORED');
+            }
+
+            const paymentId = data.id;
+
+            // 1) Busca o pagamento no MP
+            const payment = await mercadopago.payment.findById(paymentId);
+
+            const status = payment.body.status; // 'approved', 'pending', etc.
+            const externalRef = payment.body.external_reference; // id da ebook_order
+
+            if (status !== 'approved') {
+              console.log('Pagamento ainda não aprovado:', paymentId, status);
+              return res.status(200).send('NOT_APPROVED');
+            }
+
+            // 2) Atualiza pedido no Supabase
+            const { error: updateError } = await supabaseAdmin
+              .from('ebook_order')
+              .update({
+                status: 'approved',           // precisa existir no enum status_pedido
+                rastreamento_id: String(paymentId),
+                download_allowed: true,
+              })
+              .eq('id', externalRef);
+
+            if (updateError) {
+              console.error('Erro update Supabase no webhook', updateError);
+              return res.status(200).send('UPDATE_ERROR');
+            }
+
+            console.log('Pedido aprovado e liberado:', externalRef);
+            return res.status(200).send('OK');
+          } catch (err) {
+            console.error('Erro no webhook', err);
+            // devolve 200 mesmo com erro para o MP não ficar rebatendo infinito
+            return res.status(200).send('ERROR');
+          }
+        }

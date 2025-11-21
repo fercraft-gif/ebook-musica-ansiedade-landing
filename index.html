@@ -529,7 +529,7 @@
           </button>
         </form>
 
-        <!-- Caixa Pix (aparece só quando o método é Pix) -->
+        <!-- Caixa Pix (fallback, se API falhar) -->
         <div id="pix-box" class="pix-box hidden">
           <p>
             Seus dados foram registrados. Agora copie o código Pix abaixo e
@@ -548,20 +548,11 @@
       </div>
     </div>
 
-    <!-- SE TIVER OUTROS SCRIPTS SEUS, DEIXA AQUI -->
-    <!-- <script src="script.js"></script> -->
-
-    <!-- SUPABASE + LÓGICA DE PAGAMENTO -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <!-- SCRIPT PRINCIPAL: MODAL + CHECKOUT -->
     <script>
-      // CLIENTE SUPABASE (NAVEGADOR)
-      const supabase = window.supabase.createClient(
-        "https://nfvbqxuwjhifrndbzmnp.supabase.co",
-        "sb_publishable_s_cXvvEHtBo6qG_cSNqh6Q_vSIxQEHa"
-      );
-
-      // MERCADO PAGO
-      const MP_CARD_URL = "https://mpago.la/1qEwwRM";
+      // URLs principais
+      const API_CHECKOUT_URL = "/api/create-checkout";
+      const MP_CARD_URL = "https://mpago.la/1qEwwRM"; // fallback cartão
       const PIX_COPY_CODE =
         "00020126670014br.gov.bcb.pix013659669241-d4c7-4964-b437-8ff9ca16e2ab0205venda5204000053039865406129.005802BR5925Fernanda Franzoni Zaguini6008Brasilia62080504mpda6304A395";
 
@@ -590,6 +581,8 @@
         currentPaymentMethod = method;
         modal.classList.remove("hidden");
         pixBox.classList.add("hidden");
+        pixCodeDisplay.textContent = "";
+        copyPixFeedback.textContent = "";
         modalMessage.textContent = "";
         checkoutForm.reset();
       }
@@ -609,58 +602,69 @@
         if (e.target === modal) closeModal();
       });
 
-      // Formulário → cria pedido no Supabase
+      // Envio do formulário → cria checkout via API
       checkoutForm?.addEventListener("submit", async (e) => {
         e.preventDefault();
 
         const name = buyerNameInput.value.trim();
         const email = buyerEmailInput.value.trim();
+        const paymentMethod = currentPaymentMethod;
 
         if (!name || !email) {
           modalMessage.textContent = "Preencha nome e e-mail para continuar.";
           return;
         }
 
-        if (!currentPaymentMethod) {
-          modalMessage.textContent =
-            "Escolha primeiro uma forma de pagamento.";
+        if (!paymentMethod) {
+          modalMessage.textContent = "Escolha primeiro uma forma de pagamento.";
           return;
         }
 
         modalMessage.textContent = "Registrando seus dados...";
 
-        const { data, error } = await supabase
-          .from("ebook_order")
-          .insert({
-            customer_name: name,
-            email: email,
-            payment_method: currentPaymentMethod,
-            status: "pending",
-            download_allowed: false,
-          })
-          .select()
-          .single();
+        try {
+          const res = await fetch(API_CHECKOUT_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, email, paymentMethod }),
+          });
 
-        // guarda e-mail no navegador para a página obrigado.html
-        localStorage.setItem("buyer_email", email);
+          const data = await res.json();
 
-        if (error) {
-          console.error(error);
-          modalMessage.textContent = "Erro ao registrar. Tente novamente.";
-          return;
-        }
+          // guarda e-mail no navegador para páginas futuras (obrigado/download)
+          try {
+            localStorage.setItem("buyer_email", email);
+          } catch {}
 
-        if (currentPaymentMethod === "card") {
-          modalMessage.textContent =
-            "Redirecionando para pagamento seguro...";
-          window.location.href = MP_CARD_URL;
-        }
+          if (!res.ok || !data.checkoutUrl) {
+            // fallback se a API falhar
+            if (paymentMethod === "pix") {
+              modalMessage.textContent =
+                "Não foi possível abrir o checkout automático. Use o código Pix abaixo:";
+              pixBox.classList.remove("hidden");
+              pixCodeDisplay.textContent = PIX_COPY_CODE;
+            } else {
+              modalMessage.textContent =
+                "Não foi possível abrir o checkout automático. Vou te levar para o pagamento seguro.";
+              window.location.href = MP_CARD_URL;
+            }
+            return;
+          }
 
-        if (currentPaymentMethod === "pix") {
-          modalMessage.textContent =
-            "Dados registrados! Agora faça o pagamento via PIX:";
-          pixCodeDisplay.textContent = PIX_COPY_CODE;
-          pixBox.classList.remove("hidden");
+          // Redireciona para o checkout do Mercado Pago
+          window.location.href = data.checkoutUrl;
+        } catch (err) {
+          console.error(err);
+          if (currentPaymentMethod === "pix") {
+            modalMessage.textContent =
+              "Erro no checkout automático. Use o código Pix abaixo:";
+            pixBox.classList.remove("hidden");
+            pixCodeDisplay.textContent = PIX_COPY_CODE;
+          } else {
+            modalMessage.textContent =
+              "Erro no checkout automático. Vou te levar para o pagamento seguro.";
+            window.location.href = MP_CARD_URL;
+          }
         }
       });
 
