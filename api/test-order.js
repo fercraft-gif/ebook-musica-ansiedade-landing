@@ -1,29 +1,20 @@
-// api/test-order.js
-import { supabaseAdmin } from '../lib/supabaseAdmin.js';
+// /api/test-order.js
+import { supabaseAdmin } from '../lib/supabaseAdmin';
 
 export default async function handler(req, res) {
-  try {
-    const { data, error } = await supabaseAdmin
-      .from('ebook_order')
-      .insert({
-        name: 'Teste Supabase',
-        email: 'teste@supabase.com',
-        status: 'pending',
-        payment_method: 'pix',
-        amount: 1,
-        download_allowed: false,
-      })
-      .select('*')
-      .single();
+  const { error } = await supabaseAdmin
+    .from('ebook_order')
+    .insert({
+      name: 'Teste ENV OK',
+      email: 'teste@teste.com',
+      status: 'test',
+      payment_method: 'pix',
+    });
 
-    if (error) {
-      console.error('ERRO TEST-ORDER:', error);
-      return res.status(500).json({ error: 'Erro ao inserir no Supabase.' });
-    }
-
-    return res.status(200).json({ ok: true, data });
-  } catch (err) {
-    console.error('ERRO GERAL TEST-ORDER:', err);
-    return res.status(500).json({ error: 'Erro geral.' });
+  if (error) {
+    console.error('Erro ao inserir no Supabase:', error);
+    return res.status(500).json({ error: error.message });
   }
+
+  return res.status(200).json({ ok: true });
 }
