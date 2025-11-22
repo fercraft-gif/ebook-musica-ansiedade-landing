@@ -1,7 +1,6 @@
 // /api/mp-webhook.js
-import mercadopago from "mercadopago";
-import { supabaseAdmin } from "../lib/supabaseAdmin.js";
-import { sendEbookEmail } from "../lib/sendEmail.js";
+import mercadopago from 'mercadopago';
+import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
 mercadopago.configure({
   access_token: process.env.MP_ACCESS_TOKEN,
@@ -9,52 +8,65 @@ mercadopago.configure({
 
 export default async function handler(req, res) {
   const { type, topic } = req.query;
+
   const paymentId =
-    req.query["data.id"] ||
-    req.body?.data?.id ||
-    req.body?.id ||
+    req.query['data.id'] ??
+    req.body?.data?.id ??
+    req.body?.id ??
     null;
 
-  if (!paymentId || (type !== "payment" && topic !== "payment")) {
-    res.status(200).send("Ignored");
-    return;
+  // Garante que é um webhook de pagamento
+  if (!paymentId || (type !== 'payment' && topic !== 'payment')) {
+    return res.status(200).send('Ignored');
   }
 
   try {
     const payment = await mercadopago.payment.findById(paymentId);
     const body = payment.body;
 
-    const status = body.status;
+    const status = body.status; // 'approved', 'rejected', etc.
     const metadata = body.metadata || {};
-    const ebookOrderId = metadata.ebook_order_id || null;
+    const ebookOrderId = metadata.ebook_order_id;
 
-    if (status === "approved" && ebookOrderId) {
-      // 1) Atualiza pedido como pago + libera download
-      const { data: order, error } = await supabaseAdmin
-        .from("ebook_order")
+    if (!ebookOrderId) {
+      console.warn('Webhook sem ebook_order_id no metadata');
+      return res.status(200).send('No ebook_order_id');
+    }
+
+    // Pagamento aprovado → libera download
+    if (status === 'approved') {
+      const { error } = await supabaseAdmin
+        .from('ebook_order')
         .update({
-          status: "aprovado",
-          rastreamento_id: paymentId,
+          status: 'aprovado',               // enum status_pedido
+          rastreamento_id: String(paymentId),
           download_allowed: true,
         })
-        .eq("id", ebookOrderId)
-        .select("email, name")
-        .single();
+        .eq('id', ebookOrderId);
 
       if (error) {
-        console.error("Erro ao atualizar ebook_order:", error);
-      } else if (order?.email) {
-        // 2) Dispara e-mail automático
-        await sendEbookEmail({
-          toEmail: order.email,
-          toName: order.name,
-        });
+        console.error('Erro ao atualizar ebook_order (approved):', error);
       }
     }
 
-    res.status(200).send("OK");
+    // Pagamento rejeitado → marca como rejeitado
+    if (status === 'rejected') {
+      const { error } = await supabaseAdmin
+        .from('ebook_order')
+        .update({
+          status: 'rejeitado',
+          download_allowed: false,
+        })
+        .eq('id', ebookOrderId);
+
+      if (error) {
+        console.error('Erro ao atualizar ebook_order (rejected):', error);
+      }
+    }
+
+    return res.status(200).send('OK');
   } catch (err) {
-    console.error("Erro no webhook do Mercado Pago:", err);
-    res.status(500).send("Error");
+    console.error('Erro no webhook do Mercado Pago:', err);
+    return res.status(500).send('Error');
   }
 }

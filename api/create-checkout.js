@@ -14,27 +14,31 @@ export default async function handler(req, res) {
 
   const { name, email, paymentMethod } = req.body || {};
 
+  // paymentMethod PRECISA ser 'pix' ou 'card' (enum mp_payment)
   if (!name || !email || !paymentMethod) {
     res.status(400).json({ error: 'Dados obrigatórios faltando' });
     return;
   }
 
   try {
-    // 1) Cria registro na tabela ebook_order como "pending"
+    // 1) Cria registro na tabela ebook_order como "pendencia"
     const { data: order, error: dbError } = await supabaseAdmin
       .from('ebook_order')
       .insert({
-        buyer_name: name,
+        name: name,
         email,
-        payment_method: paymentMethod,
-        status: 'pending',      // texto simples
+        payment_method: paymentMethod, // 'pix' ou 'card'
+        status: 'pendencia',           // enum status_pedido
         amount: 129.0,
-        download_allowed: false // começa bloqueado
+        download_allowed: false,
       })
       .select()
       .single();
 
-    if (dbError) throw dbError;
+    if (dbError) {
+      console.error('Erro ao inserir em ebook_order:', dbError);
+      throw dbError;
+    }
 
     // 2) Cria preferência no Mercado Pago
     const preference = {
@@ -43,7 +47,7 @@ export default async function handler(req, res) {
           title: 'E-book Música & Ansiedade',
           quantity: 1,
           currency_id: 'BRL',
-          unit_price: 129.0, // ajuste se mudar o preço
+          unit_price: 129.0,
         },
       ],
       payer: {
@@ -51,7 +55,7 @@ export default async function handler(req, res) {
         email,
       },
       metadata: {
-        ebook_order_id: order.id,     // para casar depois no webhook
+        ebook_order_id: order.id,   // para casar depois no webhook
         payment_method: paymentMethod,
       },
       back_urls: {
@@ -63,12 +67,11 @@ export default async function handler(req, res) {
     };
 
     const mpRes = await mercadopago.preferences.create(preference);
-
     const checkoutUrl =
       mpRes.body.init_point || mpRes.body.sandbox_init_point;
 
     // 3) Atualiza o pedido com dados da preferência
-    await supabaseAdmin
+    const { error: updateError } = await supabaseAdmin
       .from('ebook_order')
       .update({
         mp_preference_id: mpRes.body.id,
@@ -76,7 +79,15 @@ export default async function handler(req, res) {
       })
       .eq('id', order.id);
 
-    // 4) Responde para o front
+    if (updateError) {
+      console.error(
+        'Erro ao atualizar ebook_order com dados do Mercado Pago:',
+        updateError
+      );
+      throw updateError;
+    }
+
+    // 4) Responde para o front com a URL do checkout
     res.status(200).json({ checkoutUrl });
   } catch (err) {
     console.error('Erro em /api/create-checkout', err);

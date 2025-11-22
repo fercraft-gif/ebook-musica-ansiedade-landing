@@ -1,62 +1,47 @@
-// download.js — usado apenas na página download.html
+// /api/download.js
+import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
-document.addEventListener("DOMContentLoaded", () => {
-  const downloadBtn = document.getElementById("download-btn");
-  const messageEl = document.getElementById("download-message");
+// Ajuste esse caminho se o nome do arquivo for diferente
+// (por exemplo, '/assets/musica-e-ansiedade.pdf' ou parecido)
+const EBOOK_FILE_PATH = '/musica-e-ansiedade.pdf';
 
-  if (!downloadBtn) return;
+export default async function handler(req, res) {
+  const email =
+    req.query.email ||
+    req.body?.email ||
+    '';
 
-  downloadBtn.addEventListener("click", async () => {
-    if (messageEl) {
-      messageEl.textContent = "Verificando seu pagamento...";
+  if (!email) {
+    return res.status(400).json({ error: 'E-mail é obrigatório' });
+  }
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('ebook_order')
+      .select('id, download_allowed, created_at')
+      .eq('email', email)
+      .eq('download_allowed', true)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Erro ao verificar permissão de download:', error);
+      return res.status(500).json({ error: 'Erro ao consultar pedido' });
     }
 
-    let email = null;
-    try {
-      email = localStorage.getItem("buyer_email");
-    } catch {}
-
-    if (!email) {
-      if (messageEl) {
-        messageEl.textContent =
-          "Não encontrei seu e-mail. Volte para a página de compra ou escreva para Mmt.fernandazaguini@gmail.com com o comprovante.";
-      }
-      return;
+    if (!data) {
+      return res
+        .status(403)
+        .json({ error: 'Download ainda não foi liberado para este e-mail.' });
     }
 
-    try {
-      const res = await fetch("/api/check-download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Erro ao verificar download");
-      }
-
-      if (!data.allowed) {
-        if (messageEl) {
-          messageEl.textContent =
-            "Seu pagamento ainda não foi confirmado pelo sistema. Aguarde alguns minutos e recarregue esta página.";
-        }
-        return;
-      }
-
-      if (messageEl) {
-        messageEl.textContent = "Iniciando download...";
-      }
-
-      // URL assinada vinda da API (Supabase Storage)
-      window.location.href = data.downloadUrl;
-    } catch (err) {
-      console.error(err);
-      if (messageEl) {
-        messageEl.textContent =
-          "Não foi possível liberar o download agora. Tente novamente em alguns instantes.";
-      }
-    }
-  });
-});
+    // Redireciona para o arquivo estático do e-book
+    res.setHeader('Location', EBOOK_FILE_PATH);
+    res.statusCode = 302;
+    res.end();
+  } catch (e) {
+    console.error('Erro geral em /api/download:', e);
+    return res.status(500).json({ error: 'Erro interno' });
+  }
+}
