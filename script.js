@@ -9,18 +9,18 @@ document.addEventListener('DOMContentLoaded', () => {
  * CHECKOUT NO MODAL (PIX / CARTÃO)
  */
 function setupModalCheckout() {
-  // URLs principais
   const API_CHECKOUT_URL = '/api/create-checkout';
   const MP_CARD_URL = 'https://mpago.la/1qEwwRM'; // fallback cartão
   const PIX_COPY_CODE =
     '00020126670014br.gov.bcb.pix013659669241-d4c7-4964-b437-8ff9ca16e2ab0205venda5204000053039865406129.005802BR5925Fernanda Franzoni Zaguini6008Brasilia62080504mpda6304A395';
 
-  // ELEMENTOS
+  // Botões de abertura do modal
   const payPixBtn = document.getElementById('pay-pix');
   const payPixSecondaryBtn = document.getElementById('pay-pix-secondary');
   const payCardBtn = document.getElementById('pay-card');
   const payCardFinalBtn = document.getElementById('pay-card-final');
 
+  // Modal e campos
   const modal = document.getElementById('checkout-modal');
   const modalClose = document.getElementById('modal-close');
   const checkoutForm = document.getElementById('checkout-form');
@@ -34,28 +34,30 @@ function setupModalCheckout() {
   const copyPixBtn = document.getElementById('copy-pix-code');
   const copyPixFeedback = document.getElementById('copy-pix-feedback');
 
-  if (!modal || !checkoutForm || !buyerNameInput || !buyerEmailInput) {
-    console.warn('Modal de checkout não encontrado na página.');
+  if (!modal || !checkoutForm || !buyerNameInput || !buyerEmailInput || !modalMessage) {
+    console.warn('Modal/inputs não encontrados — checkout do modal não será inicializado.');
     return;
   }
 
-  let currentPaymentMethod = null;
+  let currentPaymentMethod = null; // 'pix' | 'card'
 
   function openModal(method) {
-    currentPaymentMethod = method; // 'pix' ou 'card'
+    currentPaymentMethod = method;
     modal.classList.remove('hidden');
-    pixBox.classList.add('hidden');
-    pixCodeDisplay.textContent = '';
-    copyPixFeedback.textContent = '';
-    modalMessage.textContent = '';
+
+    // reset visual
     checkoutForm.reset();
+    modalMessage.textContent = '';
+    if (pixBox) pixBox.classList.add('hidden');
+    if (pixCodeDisplay) pixCodeDisplay.textContent = '';
+    if (copyPixFeedback) copyPixFeedback.textContent = '';
   }
 
   function closeModal() {
     modal.classList.add('hidden');
   }
 
-  // Botões → abre modal
+  // abre modal
   payPixBtn?.addEventListener('click', () => openModal('pix'));
   payPixSecondaryBtn?.addEventListener('click', () => openModal('pix'));
   payCardBtn?.addEventListener('click', () => openModal('card'));
@@ -66,7 +68,7 @@ function setupModalCheckout() {
     if (e.target === modal) closeModal();
   });
 
-  // Envio do formulário → cria checkout via API
+  // submit do modal
   checkoutForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -93,28 +95,26 @@ function setupModalCheckout() {
         body: JSON.stringify({ name, email, paymentMethod }),
       });
 
-      let data;
+      let data = null;
       try {
         data = await res.json();
       } catch (jsonError) {
-        console.error('Resposta não era JSON:', jsonError);
-        data = null;
+        console.error('Resposta da API não era JSON:', jsonError);
       }
 
-      // guarda e-mail no navegador para páginas futuras (obrigado/download)
-      try {
-        localStorage.setItem('buyer_email', email);
-      } catch {}
+      console.log('create-checkout →', res.status, data);
 
-      if (!res.ok || !data || !data.checkoutUrl) {
+      // salva email SEMPRE (antes de redirect)
+      try { localStorage.setItem('buyer_email', email); } catch {}
+
+      if (!res.ok || !data?.checkoutUrl) {
         console.error('Falha em /api/create-checkout:', data);
 
-        // fallback se a API falhar
         if (paymentMethod === 'pix') {
           modalMessage.textContent =
             'Não foi possível abrir o checkout automático. Use o código Pix abaixo:';
-          pixBox.classList.remove('hidden');
-          pixCodeDisplay.textContent = PIX_COPY_CODE;
+          if (pixBox) pixBox.classList.remove('hidden');
+          if (pixCodeDisplay) pixCodeDisplay.textContent = PIX_COPY_CODE;
         } else {
           modalMessage.textContent =
             'Não foi possível abrir o checkout automático. Vou te levar para o pagamento seguro.';
@@ -123,16 +123,16 @@ function setupModalCheckout() {
         return;
       }
 
-      // Sucesso → Redireciona para o checkout do Mercado Pago
+      // sucesso
       window.location.href = data.checkoutUrl;
     } catch (err) {
       console.error('Erro de rede em /api/create-checkout:', err);
 
-      if (currentPaymentMethod === 'pix') {
+      if (paymentMethod === 'pix') {
         modalMessage.textContent =
           'Erro no checkout automático. Use o código Pix abaixo:';
-        pixBox.classList.remove('hidden');
-        pixCodeDisplay.textContent = PIX_COPY_CODE;
+        if (pixBox) pixBox.classList.remove('hidden');
+        if (pixCodeDisplay) pixCodeDisplay.textContent = PIX_COPY_CODE;
       } else {
         modalMessage.textContent =
           'Erro no checkout automático. Vou te levar para o pagamento seguro.';
@@ -141,15 +141,20 @@ function setupModalCheckout() {
     }
   });
 
-  // Copiar PIX
+  // copiar pix
   copyPixBtn?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(PIX_COPY_CODE);
-      copyPixFeedback.textContent =
-        'Código Pix copiado! Agora é só colar no app do seu banco.';
-    } catch {
-      copyPixFeedback.textContent =
-        'Não foi possível copiar automaticamente. Copie manualmente, por favor.';
+      if (copyPixFeedback) {
+        copyPixFeedback.textContent =
+          'Código Pix copiado! Agora é só colar no app do seu banco.';
+      }
+    } catch (e) {
+      console.error('Erro ao copiar PIX:', e);
+      if (copyPixFeedback) {
+        copyPixFeedback.textContent =
+          'Não foi possível copiar automaticamente. Copie manualmente, por favor.';
+      }
     }
   });
 }
@@ -180,6 +185,8 @@ function setupDownloadFlow() {
       );
       const checkData = await checkResp.json();
 
+      console.log('check-download →', checkResp.status, checkData);
+
       if (!checkResp.ok) {
         if (statusEl) {
           statusEl.textContent =
@@ -198,7 +205,6 @@ function setupDownloadFlow() {
 
       if (statusEl) statusEl.textContent = 'Liberando download...';
 
-      // Chama rota que redireciona pro PDF
       window.location.href =
         '/api/download?email=' + encodeURIComponent(email);
     } catch (err) {
