@@ -1,4 +1,4 @@
-// api/create-checkout.js
+// /api/create-checkout.js
 import mercadopago from 'mercadopago';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
@@ -6,71 +6,80 @@ mercadopago.configure({
   access_token: process.env.MP_ACCESS_TOKEN,
 });
 
-const PRICE = 129.0; // ajuste se mudar
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Método não permitido' });
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+
+  const { name, email, paymentMethod } = req.body || {};
+
+  if (!name || !email || !paymentMethod) {
+    res.status(400).json({ error: 'Dados obrigatórios faltando' });
+    return;
   }
 
   try {
-    const { name, email, paymentMethod } = req.body;
-
-    if (!name || !email) {
-      return res.status(400).json({ error: 'Nome e e-mail são obrigatórios' });
-    }
-
-    // 1) Cria pedido PENDING no Supabase
-    const { data: order, error: insertError } = await supabaseAdmin
+    // 1) Cria registro na tabela ebook_order como "pending"
+    const { data: order, error: dbError } = await supabaseAdmin
       .from('ebook_order')
       .insert({
-        name,
+        buyer_name: name,
         email,
-        status: 'pending', // precisa existir no enum status_pedido
-        payment_method: paymentMethod || 'pix',
-        amount: PRICE,
-        download_allowed: false,
+        payment_method: paymentMethod,
+        status: 'pending',      // texto simples
+        amount: 129.0,
+        download_allowed: false // começa bloqueado
       })
-      .select('*')
+      .select()
       .single();
 
-    if (insertError) {
-      console.error('Erro insert Supabase', insertError);
-      return res.status(500).json({ error: 'Erro ao criar pedido' });
-    }
+    if (dbError) throw dbError;
 
     // 2) Cria preferência no Mercado Pago
-    const preference = await mercadopago.preferences.create({
-      payer: {
-        name,
-        email,
-      },
+    const preference = {
       items: [
         {
           title: 'E-book Música & Ansiedade',
           quantity: 1,
           currency_id: 'BRL',
-          unit_price: PRICE,
+          unit_price: 129.0, // ajuste se mudar o preço
         },
       ],
-      external_reference: order.id, // ligação com a tabela
+      payer: {
+        name,
+        email,
+      },
+      metadata: {
+        ebook_order_id: order.id,     // para casar depois no webhook
+        payment_method: paymentMethod,
+      },
       back_urls: {
-        success: 'https://octopusaxisebook.com/obrigada.html',
+        success: 'https://octopusaxisebook.com/obrigado.html',
         failure: 'https://octopusaxisebook.com/erro.html',
         pending: 'https://octopusaxisebook.com/pendente.html',
       },
       auto_return: 'approved',
-      notification_url:
-        'https://octopusaxisebook.com/api/mp-webhook', // webhook hospedado na Vercel
-    });
+    };
 
-    const initPoint =
-      preference.body.init_point || preference.body.sandbox_init_point;
+    const mpRes = await mercadopago.preferences.create(preference);
 
-    // 3) Envia link de checkout pro front
-    return res.status(200).json({ checkoutUrl: initPoint });
+    const checkoutUrl =
+      mpRes.body.init_point || mpRes.body.sandbox_init_point;
+
+    // 3) Atualiza o pedido com dados da preferência
+    await supabaseAdmin
+      .from('ebook_order')
+      .update({
+        mp_preference_id: mpRes.body.id,
+        mp_checkout_url: checkoutUrl,
+      })
+      .eq('id', order.id);
+
+    // 4) Responde para o front
+    res.status(200).json({ checkoutUrl });
   } catch (err) {
-    console.error('Erro create-checkout', err);
-    return res.status(500).json({ error: 'Erro interno no checkout' });
+    console.error('Erro em /api/create-checkout', err);
+    res.status(500).json({ error: 'Erro ao criar checkout' });
   }
 }

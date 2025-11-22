@@ -2,48 +2,82 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <title>Download do E-book · Música & Ansiedade</title>
+    <title>Download · Música & Ansiedade</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Baixe o e-book Música & Ansiedade com segurança."
+    />
     <link rel="stylesheet" href="styles.css" />
     <style>
-      .download-container {
-        max-width: 480px;
-        margin: 4rem auto;
-        background: #071820;
-        color: #f9fafb;
+      .download-hero {
+        min-height: 70vh;
+        display: flex;
+        align-items: center;
+      }
+      .download-card {
+        max-width: 720px;
+        margin: 0 auto;
         padding: 2.5rem 2rem;
-        border-radius: 1.25rem;
-        box-shadow: 0 22px 45px rgba(0,0,0,0.18);
-        text-align: center;
+        border-radius: 1.5rem;
+        background: radial-gradient(circle at top left, #16343f, #020617);
+        box-shadow: 0 22px 45px rgba(0, 0, 0, 0.6);
+        color: #e5e7eb;
       }
-      .download-btn {
-        margin-top: 2rem;
-        padding: 1rem 2.5rem;
-        font-size: 1.1rem;
-        border-radius: 0.75rem;
-        background: #10b981;
-        color: #fff;
-        border: none;
-        cursor: pointer;
-        transition: background 0.2s;
+      .download-title {
+        font-size: clamp(1.8rem, 3vw, 2.3rem);
+        margin-bottom: 0.75rem;
       }
-      .download-btn:hover {
-        background: #059669;
-      }
-      .download-note {
-        margin-top: 1.5rem;
+      .download-message {
+        margin-top: 1rem;
         font-size: 0.95rem;
-        color: #a7f3d0;
+        opacity: 0.9;
       }
     </style>
   </head>
   <body>
-    <div class="download-container">
-      <h1>Seu download está liberado!</h1>
-      <p>Obrigado por adquirir o e-book <strong>Música & Ansiedade</strong>.<br>
-      Clique no botão abaixo para baixar o PDF:</p>
-      <a href="/api/download" class="download-btn">Baixar E-book (PDF)</a>
-      <p class="download-note">Se tiver qualquer problema, entre em contato pelo e-mail: contato@octopusaxis.com</p>
-    </div>
+    <header class="site-header">
+      <div class="container header-inner">
+        <div class="logo-block">
+          <div class="logo-mark">OA</div>
+          <div class="logo-text">
+            <span class="logo-small">Octopus Axis E-books</span>
+            <span class="logo-sub">Série Música &amp; Medicina</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="download-hero">
+      <div class="container">
+        <div class="download-card">
+          <p class="pill">Download seguro · Música &amp; Ansiedade</p>
+          <h1 class="download-title">Seu e-book está quase nas suas mãos.</h1>
+          <p>
+            Clique no botão abaixo para liberar o download. O sistema vai
+            verificar o pagamento e gerar um link seguro direto do servidor.
+          </p>
+
+          <div class="thankyou-actions" style="margin-top: 1.5rem">
+            <button id="download-btn" class="btn btn-primary">
+              BAIXAR E-BOOK AGORA
+            </button>
+            <a href="index.html" class="btn btn-outline">
+              VOLTAR PARA A PÁGINA INICIAL
+            </a>
+          </div>
+
+          <p id="download-message" class="download-message"></p>
+        </div>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <p>© 2025 Octopus Axis — Música &amp; Medicina.</p>
+      </div>
+    </footer>
+
+    <script src="download.js"></script>
   </body>
 </html>

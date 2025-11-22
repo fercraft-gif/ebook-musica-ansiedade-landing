@@ -1,38 +1,62 @@
-// download.js
-async function baixarEbook(abrirNovaAba = false) {
-  const email = localStorage.getItem("buyer_email");
+// download.js — usado apenas na página download.html
 
-  if (!email) {
-    alert("Não encontrei seus dados. Volte à página de compra.");
-    return;
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  const downloadBtn = document.getElementById("download-btn");
+  const messageEl = document.getElementById("download-message");
 
-  try {
-    const res = await fetch(
-      "/api/download?email=" + encodeURIComponent(email)
-    );
-    const json = await res.json();
+  if (!downloadBtn) return;
 
-    if (!json.url) {
-      alert(json.error || "Erro ao validar compra. Tente novamente.");
+  downloadBtn.addEventListener("click", async () => {
+    if (messageEl) {
+      messageEl.textContent = "Verificando seu pagamento...";
+    }
+
+    let email = null;
+    try {
+      email = localStorage.getItem("buyer_email");
+    } catch {}
+
+    if (!email) {
+      if (messageEl) {
+        messageEl.textContent =
+          "Não encontrei seu e-mail. Volte para a página de compra ou escreva para Mmt.fernandazaguini@gmail.com com o comprovante.";
+      }
       return;
     }
 
-    if (abrirNovaAba) {
-      window.open(json.url, "_blank");
-    } else {
-      window.location.href = json.url;
+    try {
+      const res = await fetch("/api/check-download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Erro ao verificar download");
+      }
+
+      if (!data.allowed) {
+        if (messageEl) {
+          messageEl.textContent =
+            "Seu pagamento ainda não foi confirmado pelo sistema. Aguarde alguns minutos e recarregue esta página.";
+        }
+        return;
+      }
+
+      if (messageEl) {
+        messageEl.textContent = "Iniciando download...";
+      }
+
+      // URL assinada vinda da API (Supabase Storage)
+      window.location.href = data.downloadUrl;
+    } catch (err) {
+      console.error(err);
+      if (messageEl) {
+        messageEl.textContent =
+          "Não foi possível liberar o download agora. Tente novamente em alguns instantes.";
+      }
     }
-  } catch (e) {
-    console.error(e);
-    alert("Erro ao tentar liberar o download. Tente novamente.");
-  }
-}
-
-document
-  .getElementById("download-ebook")
-  ?.addEventListener("click", () => baixarEbook(false));
-
-document
-  .getElementById("open-ebook")
-  ?.addEventListener("click", () => baixarEbook(true));
+  });
+});
