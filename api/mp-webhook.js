@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       const { data: order, error } = await supabaseAdmin
         .from("ebook_order")
         .update({
-          status: "paid",
+          status: "aprovado",
           rastreamento_id: paymentId,
           download_allowed: true,
         })
