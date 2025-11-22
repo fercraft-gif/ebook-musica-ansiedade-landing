@@ -14,9 +14,16 @@ export default async function handler(req, res) {
 
   const { name, email, paymentMethod } = req.body || {};
 
-  // paymentMethod PRECISA ser 'pix' ou 'card' (enum mp_payment)
-  if (!name || !email || !paymentMethod) {
-    res.status(400).json({ error: 'Dados obrigatórios faltando' });
+  // Se não vier método de pagamento, assume 'pix' (compatível com enum mp_payment)
+  let method = paymentMethod || 'pix';
+
+  // Se vier algo estranho, normaliza para 'pix'
+  if (method !== 'pix' && method !== 'card') {
+    method = 'pix';
+  }
+
+  if (!name || !email) {
+    res.status(400).json({ error: 'Nome e e-mail são obrigatórios' });
     return;
   }
 
@@ -27,8 +34,8 @@ export default async function handler(req, res) {
       .insert({
         name: name,
         email,
-        payment_method: paymentMethod, // 'pix' ou 'card'
-        status: 'pendencia',           // enum status_pedido
+        payment_method: method,   // enum mp_payment: 'pix' | 'card'
+        status: 'pendencia',      // enum status_pedido
         amount: 129.0,
         download_allowed: false,
       })
@@ -55,8 +62,8 @@ export default async function handler(req, res) {
         email,
       },
       metadata: {
-        ebook_order_id: order.id,   // para casar depois no webhook
-        payment_method: paymentMethod,
+        ebook_order_id: order.id,
+        payment_method: method,
       },
       back_urls: {
         success: 'https://octopusaxisebook.com/obrigado.html',
@@ -67,6 +74,7 @@ export default async function handler(req, res) {
     };
 
     const mpRes = await mercadopago.preferences.create(preference);
+
     const checkoutUrl =
       mpRes.body.init_point || mpRes.body.sandbox_init_point;
 
