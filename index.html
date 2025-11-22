@@ -410,198 +410,68 @@
       </div>
     </footer>
 
-    <!-- MODAL DE CHECKOUT -->
-    <div id="checkout-modal" class="checkout-modal hidden">
-      <div class="checkout-modal-inner">
-        <button
-          id="modal-close"
-          class="modal-close"
-          type="button"
-          aria-label="Fechar"
-        >
-          &times;
-        </button>
-        <h2>Quase lá!</h2>
-        <p>
-          Preencha seus dados para receber o link seguro do e-book após a
-          confirmação do pagamento.
-        </p>
+ <!-- MODAL DE CHECKOUT -->
+<div id="checkout-modal" class="checkout-modal hidden">
+  <div class="checkout-modal-inner">
+    <button
+      id="modal-close"
+      class="modal-close"
+      type="button"
+      aria-label="Fechar"
+    >
+      &times;
+    </button>
+    <h2>Quase lá!</h2>
+    <p>
+      Preencha seus dados para receber o link seguro do e-book após a
+      confirmação do pagamento.
+    </p>
 
-        <form id="checkout-form">
-          <div class="input-row">
-            <input
-              type="text"
-              id="buyer-name"
-              name="name"
-              placeholder="Seu nome completo"
-              required
-            />
-            <input
-              type="email"
-              id="buyer-email"
-              name="email"
-              placeholder="Seu melhor e-mail"
-              required
-            />
-          </div>
-
-          <p id="modal-message" class="hero-notice"></p>
-
-          <button type="submit" class="btn btn-primary">
-            Continuar para pagamento seguro
-          </button>
-        </form>
-
-        <!-- Caixa Pix (fallback, se API falhar) -->
-        <div id="pix-box" class="pix-box hidden">
-          <p>
-            Seus dados foram registrados. Agora copie o código Pix abaixo e
-            pague pelo app do seu banco:
-          </p>
-          <pre id="pix-code-display"></pre>
-          <button
-            type="button"
-            id="copy-pix-code"
-            class="btn btn-outline btn-small"
-          >
-            Copiar código PIX
-          </button>
-          <p id="copy-pix-feedback" class="hero-notice"></p>
-        </div>
+    <form id="checkout-form">
+      <div class="input-row">
+        <input
+          type="text"
+          id="buyer-name"
+          name="name"
+          placeholder="Seu nome completo"
+          required
+        />
+        <input
+          type="email"
+          id="buyer-email"
+          name="email"
+          placeholder="Seu melhor e-mail"
+          required
+        />
       </div>
+
+      <p id="modal-message" class="hero-notice"></p>
+
+      <button type="submit" class="btn btn-primary">
+        Continuar para pagamento seguro
+      </button>
+    </form>
+
+    <!-- Caixa Pix (fallback, se API falhar) -->
+    <div id="pix-box" class="pix-box hidden">
+      <p>
+        Seus dados foram registrados. Agora copie o código Pix abaixo e
+        pague pelo app do seu banco:
+      </p>
+      <pre id="pix-code-display"></pre>
+      <button
+        type="button"
+        id="copy-pix-code"
+        class="btn btn-outline btn-small"
+      >
+        Copiar código PIX
+      </button>
+      <p id="copy-pix-feedback" class="hero-notice"></p>
     </div>
+  </div>
+</div>
 
-    <!-- SCRIPT PRINCIPAL: MODAL + CHECKOUT -->
-    <script>
-      // URLs principais
-      const API_CHECKOUT_URL = "/api/create-checkout";
-      const MP_CARD_URL = "https://mpago.la/1qEwwRM"; // fallback cartão
-      const PIX_COPY_CODE =
-        "00020126670014br.gov.bcb.pix013659669241-d4c7-4964-b437-8ff9ca16e2ab0205venda5204000053039865406129.005802BR5925Fernanda Franzoni Zaguini6008Brasilia62080504mpda6304A395";
-
-      // ELEMENTOS
-      const payPixBtn = document.getElementById("pay-pix");
-      const payPixSecondaryBtn = document.getElementById("pay-pix-secondary");
-      const payCardBtn = document.getElementById("pay-card");
-      const payCardFinalBtn = document.getElementById("pay-card-final");
-
-      const modal = document.getElementById("checkout-modal");
-      const modalClose = document.getElementById("modal-close");
-      const checkoutForm = document.getElementById("checkout-form");
-
-      const buyerNameInput = document.getElementById("buyer-name");
-      const buyerEmailInput = document.getElementById("buyer-email");
-      const modalMessage = document.getElementById("modal-message");
-
-      const pixBox = document.getElementById("pix-box");
-      const pixCodeDisplay = document.getElementById("pix-code-display");
-      const copyPixBtn = document.getElementById("copy-pix-code");
-      const copyPixFeedback = document.getElementById("copy-pix-feedback");
-
-      let currentPaymentMethod = null;
-
-      function openModal(method) {
-        currentPaymentMethod = method;
-        modal.classList.remove("hidden");
-        pixBox.classList.add("hidden");
-        pixCodeDisplay.textContent = "";
-        copyPixFeedback.textContent = "";
-        modalMessage.textContent = "";
-        checkoutForm.reset();
-      }
-
-      function closeModal() {
-        modal.classList.add("hidden");
-      }
-
-      // Botões → abre modal
-      payPixBtn?.addEventListener("click", () => openModal("pix"));
-      payPixSecondaryBtn?.addEventListener("click", () => openModal("pix"));
-      payCardBtn?.addEventListener("click", () => openModal("card"));
-      payCardFinalBtn?.addEventListener("click", () => openModal("card"));
-      modalClose?.addEventListener("click", closeModal);
-
-      modal.addEventListener("click", (e) => {
-        if (e.target === modal) closeModal();
-      });
-
-      // Envio do formulário → cria checkout via API
-      checkoutForm?.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const name = buyerNameInput.value.trim();
-        const email = buyerEmailInput.value.trim();
-        const paymentMethod = currentPaymentMethod;
-
-        if (!name || !email) {
-          modalMessage.textContent = "Preencha nome e e-mail para continuar.";
-          return;
-        }
-
-        if (!paymentMethod) {
-          modalMessage.textContent = "Escolha primeiro uma forma de pagamento.";
-          return;
-        }
-
-        modalMessage.textContent = "Registrando seus dados...";
-
-        try {
-          const res = await fetch(API_CHECKOUT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name, email, paymentMethod }),
-          });
-
-          const data = await res.json();
-
-          // guarda e-mail no navegador para páginas futuras (obrigado/download)
-          try {
-            localStorage.setItem("buyer_email", email);
-          } catch {}
-
-          if (!res.ok || !data.checkoutUrl) {
-            // fallback se a API falhar
-            if (paymentMethod === "pix") {
-              modalMessage.textContent =
-                "Não foi possível abrir o checkout automático. Use o código Pix abaixo:";
-              pixBox.classList.remove("hidden");
-              pixCodeDisplay.textContent = PIX_COPY_CODE;
-            } else {
-              modalMessage.textContent =
-                "Não foi possível abrir o checkout automático. Vou te levar para o pagamento seguro.";
-              window.location.href = MP_CARD_URL;
-            }
-            return;
-          }
-
-          // Redireciona para o checkout do Mercado Pago
-          window.location.href = data.checkoutUrl;
-        } catch (err) {
-          console.error(err);
-          if (currentPaymentMethod === "pix") {
-            modalMessage.textContent =
-              "Erro no checkout automático. Use o código Pix abaixo:";
-            pixBox.classList.remove("hidden");
-            pixCodeDisplay.textContent = PIX_COPY_CODE;
-          } else {
-            modalMessage.textContent =
-              "Erro no checkout automático. Vou te levar para o pagamento seguro.";
-            window.location.href = MP_CARD_URL;
-          }
-        }
-      });
-
-      // Copiar PIX
-      copyPixBtn?.addEventListener("click", async () => {
-        try {
-          await navigator.clipboard.writeText(PIX_COPY_CODE);
-          copyPixFeedback.textContent =
-            "Código Pix copiado! Agora é só colar no app do seu banco.";
-        } catch {
-          copyPixFeedback.textContent =
-            "Não foi possível copiar automaticamente. Copie manualmente, por favor.";
-        }
-      });
-    </script>
-  </body>
+<!-- script principal da página -->
+<script src="script.js"></script>
+</body>
 </html>
