@@ -4,5 +4,8 @@
   "tipo": "modulo",
   "dependencias": {
     "@supabase/supabase-js": "^2.39.3"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.84.0"
   }
 }
