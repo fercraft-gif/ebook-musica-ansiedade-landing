@@ -6,88 +6,85 @@ mercadopago.configure({
   access_token: process.env.MP_ACCESS_TOKEN,
 });
 
-// (opcional mas recomendado) valida assinatura
-function isValidSignature(req) {
-  const secret = process.env.MP_WEBHOOK_SECRET;
-  if (!secret) return true; // se não setou, não bloqueia
-
-  const signature = req.headers["x-signature"] || "";
-  const requestId = req.headers["x-request-id"] || "";
-  const dataId =
-    req.query["data.id"] ||
-    req.body?.data?.id ||
-    req.body?.id ||
-    "";
-
-  // MP assina algo como: ts=...;v1=HASH
-  // A validação exata varia, então aqui é uma checagem simples de presença.
-  // Se quiser hard-security depois, fazemos HMAC certinho.
-  if (!signature || !requestId || !dataId) return false;
-  return true;
-}
-
 export default async function handler(req, res) {
+  // MP sempre manda POST
   if (req.method !== "POST") {
     return res.status(405).send("Method not allowed");
   }
 
-  if (!isValidSignature(req)) {
-    return res.status(401).send("Invalid signature");
-  }
-
-  const { type, topic } = req.query;
-
-  const paymentId =
-    req.query["data.id"] ||
-    req.body?.data?.id ||
-    req.body?.id ||
-    null;
-
-  if (!paymentId || (type !== "payment" && topic !== "payment")) {
-    return res.status(200).send("Ignored");
-  }
-
   try {
-    const payment = await mercadopago.payment.findById(paymentId);
-    const body = payment.body;
+    const body = req.body || {};
 
-    const status = body.status; // approved | pending | rejected ...
-    const metadata = body.metadata || {};
-    const ebookOrderId = metadata.ebook_order_id || null;
+    // paymentId pode vir nestes formatos
+    const paymentId =
+      body?.data?.id ||
+      body?.id ||
+      req.query?.data_id ||
+      req.query?.id;
 
-    if (!ebookOrderId) {
-      return res.status(200).send("No ebook_order_id");
+    if (!paymentId) {
+      console.log("Webhook recebido sem paymentId:", body);
+      return res.status(200).send("ok");
     }
 
-    // mapeia status MP -> seu enum status_pedido
+    // Busca pagamento no MP
+    const mpPayment = await mercadopago.payment.findById(paymentId);
+    const p = mpPayment.body;
+
+    const orderId = p.external_reference; // vem do create-checkout
+
+    console.log("MP webhook pagamento:", {
+      id: p.id,
+      status: p.status,
+      status_detail: p.status_detail,
+      external_reference: orderId,
+      payer_email: p.payer?.email,
+      transaction_amount: p.transaction_amount,
+      payment_type_id: p.payment_type_id,
+    });
+
+    if (!orderId) {
+      console.warn("Pagamento sem external_reference. Não sei qual order atualizar.");
+      return res.status(200).send("ok");
+    }
+
+    // Mapeia status MP -> seu enum
     let newStatus = "pendencia";
     let downloadAllowed = false;
 
-    if (status === "approved") {
+    if (p.status === "approved") {
       newStatus = "aprovado";
       downloadAllowed = true;
-    } else if (status === "rejected" || status === "cancelled") {
+    } else if (p.status === "rejected" || p.status === "cancelled") {
       newStatus = "rejeitado";
-      downloadAllowed = false;
+    } else {
+      newStatus = "pendencia";
     }
 
+    // Atualiza pedido na Supabase
     const { error } = await supabaseAdmin
       .from("ebook_order")
       .update({
         status: newStatus,
-        rastreamento_id: String(paymentId),
         download_allowed: downloadAllowed,
+        mp_payment_id: p.id,
+        mp_status: p.status,
+        mp_status_detail: p.status_detail,
+        paid_at: p.status === "approved" ? new Date().toISOString() : null,
       })
-      .eq("id", ebookOrderId);
+      .eq("id", orderId);
 
     if (error) {
-      console.error("Erro ao atualizar ebook_order:", error);
-      return res.status(500).send("DB error");
+      console.error("Erro atualizando order no Supabase:", error);
+    } else {
+      console.log("Order atualizada:", orderId, newStatus);
     }
 
-    return res.status(200).send("OK");
+    // SEMPRE responde 200 pro MP não ficar re-tentando
+    return res.status(200).send("ok");
   } catch (err) {
-    console.error("Erro no webhook do Mercado Pago:", err);
-    return res.status(500).send("Error");
+    console.error("Erro no webhook MP:", err);
+    // Mesmo em erro interno, MP exige 200
+    return res.status(200).send("ok");
   }
 }

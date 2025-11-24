@@ -36,7 +36,7 @@ export default async function handler(req, res) {
         name,
         email,
         payment_method: paymentMethod,
-        status: 'pendencia',
+        status: 'pendencia',         // enum do Supabase
         amount: 129.0,
         download_allowed: false,
       })
@@ -57,19 +57,36 @@ export default async function handler(req, res) {
           title: 'E-book Música & Ansiedade',
           quantity: 1,
           currency_id: 'BRL',
-          unit_price: 129.0,
+          unit_price: 129, // precisa ser number
         },
       ],
+
       payer: { name, email },
+
+      // 🔥 CRÍTICO: vínculo MP → Supabase
+      external_reference: order.id,
+
       metadata: {
         ebook_order_id: order.id,
         payment_method: paymentMethod,
       },
+
+      // 🔥 Necessário: sem isso o botão TRAVA
+      payment_methods: {
+        excluded_payment_types: [],
+        excluded_payment_methods: [],
+        installments: 1,
+      },
+
+      // 🔥 Garante webhook mesmo se painel quebrar
+      notification_url: 'https://octopusaxisebook.com/api/mp-webhook',
+
       back_urls: {
         success: 'https://octopusaxisebook.com/obrigado.html',
         failure: 'https://octopusaxisebook.com/erro.html',
         pending: 'https://octopusaxisebook.com/pendente.html',
       },
+
       auto_return: 'approved',
     };
 
@@ -100,6 +117,7 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ checkoutUrl });
+
   } catch (err) {
     console.error('Erro em /api/create-checkout:', err);
     return res.status(500).json({
