@@ -110,7 +110,7 @@ async function createCheckout({ name, email, paymentMethod }) {
 
   await supabaseAdminMock.from('ebook_order').update({ mp_external_reference: orderId, mp_raw: { preference_id: prefId } }).eq('id', orderId);
 
-  return { orderId, checkoutUrl: initPoint, preferenceId: prefId };
+  return { orderId, initPoint: initPoint, preferenceId: prefId };
 }
 
 async function simulateWebhook({ paymentId, external_reference, status }) {

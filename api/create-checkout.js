@@ -101,7 +101,7 @@ export default async function handler(req, res) {
 
     // 4) RESPONDE PARA O FRONTEND NO FORMATO QUE O script.js ESPERA
     return res.status(200).json({
-      checkoutUrl: initPoint,   // <-- script.js usa "checkoutUrl"
+      initPoint: initPoint,
       preferenceId: prefId
     });
 
