@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
     // 1) INSERÇÃO NA SUPABASE
     const { data: order, error: supaError } = await supabaseAdmin
-      .from('public.ebook_order')
+      .from('ebook_order')
       .insert({
         name,
         email,
@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       .single();
 
     if (supaError) {
-      console.error('Erro ao inserir pedido na Supabase:', supaError);
+      console.error('Erro ao inserir pedido na Supabase:', JSON.stringify(supaError, null, 2));
       return res.status(500).json({
         step: 'supabase-insert',
         error: 'Erro ao criar pedido na Supabase',
@@ -87,7 +87,7 @@ export default async function handler(req, res) {
 
     // 3) ATUALIZA A LINHA NA SUPABASE COM INFO DA PREFERÊNCIA
     const { error: supaUpdateError } = await supabaseAdmin
-      .from('public.ebook_order')
+      .from('ebook_order')
       .update({
         mp_external_reference: orderId,
         mp_raw: { preference_id: prefId },
@@ -95,7 +95,7 @@ export default async function handler(req, res) {
       .eq('id', orderId);
 
     if (supaUpdateError) {
-      console.error('Erro ao atualizar pedido com dados da preferência:', supaUpdateError);
+      console.error('Erro ao atualizar pedido com dados da preferência:', JSON.stringify(supaUpdateError, null, 2));
       // Não bloqueio o checkout — só aviso no JSON
     }
 

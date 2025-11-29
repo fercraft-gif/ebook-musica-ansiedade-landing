@@ -65,10 +65,16 @@ export default async function handler(req, res) {
       update.download_allowed = false;
     }
 
-    await supabaseAdmin
-      .from('public.ebook_order')
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
+      .from('ebook_order')
       .update(update)
-      .eq('id', orderId);
+      .eq('id', orderId)
+      .select('id, email')
+      .single();
+
+    if (updateError) {
+      console.error('Erro ao atualizar ebook_order:', JSON.stringify(updateError, null, 2));
+    }
 
     return res.status(200).json({ ok: true });
   } catch (err) {

@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   try {
     const { data, error } = await supabaseAdmin
-      .from('public.ebook_order')
+      .from('ebook_order')
       .select('id, download_allowed, created_at')
       .eq('email', email)
       .eq('download_allowed', true)
@@ -26,7 +26,7 @@ export default async function handler(req, res) {
       .maybeSingle();
 
     if (error) {
-      console.error('Erro ao verificar permissão de download:', error);
+      console.error('Erro ao verificar permissão de download:', JSON.stringify(error, null, 2));
       return res.status(500).json({ error: 'Erro ao consultar pedido' });
     }
 
