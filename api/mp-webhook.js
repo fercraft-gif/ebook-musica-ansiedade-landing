@@ -1,90 +1,107 @@
 // /api/mp-webhook.js
-import mercadopago from "mercadopago";
-import { supabaseAdmin } from "../lib/supabaseAdmin.js";
+
+import mercadopago from 'mercadopago';
+import { supabaseAdmin } from '../lib/supabaseAdmin.js';
+import crypto from 'crypto';
 
 mercadopago.configure({
   access_token: process.env.MP_ACCESS_TOKEN,
 });
 
 export default async function handler(req, res) {
-  // MP sempre manda POST
-  if (req.method !== "POST") {
-    return res.status(405).send("Method not allowed");
+  if (req.method !== 'POST') {
+    return res.status(405).end();
   }
 
   try {
-    const body = req.body || {};
+    // 🔒 Validação opcional de assinatura (só roda se TUDO existir)
+    const signature = req.headers['x-signature'];
+    const xRequestId = req.headers['x-request-id'];
+    const secret = process.env.MP_WEBHOOK_SECRET;
 
-    // paymentId pode vir nestes formatos
-    const paymentId =
-      body?.data?.id ||
-      body?.id ||
-      req.query?.data_id ||
-      req.query?.id;
+    if (signature && xRequestId && secret) {
+      const [tsPart, v1Part] = signature.split(',');
+      const ts = tsPart.split('=')[1];
+      const v1 = v1Part.split('=')[1];
 
-    if (!paymentId) {
-      console.log("Webhook recebido sem paymentId:", body);
-      return res.status(200).send("ok");
+      // tenta pegar o id tanto de IPN quanto de Webhook
+      const dataIdForTemplate =
+        req.query['data.id'] ||
+        req.query.id ||
+        req.body?.data?.id ||
+        req.body?.id;
+
+      const template = `id:${dataIdForTemplate};request-id:${xRequestId};ts:${ts};`;
+
+      const hash = crypto
+        .createHmac('sha256', secret)
+        .update(template)
+        .digest('hex');
+
+      if (hash !== v1) {
+        console.warn('Assinatura inválida no webhook MP');
+        return res.status(401).end();
+      }
     }
 
-    // Busca pagamento no MP
-    const mpPayment = await mercadopago.payment.findById(paymentId);
-    const p = mpPayment.body;
+    // 🔔 identifica tipo de evento
+    const topic =
+      req.query.topic ||      // IPN: ?topic=payment&id=...
+      req.query.type ||       // variações
+      req.body?.type ||       // Webhook novo
+      req.body?.action;       // fallback
 
-    const orderId = p.external_reference; // vem do create-checkout
+    // id do pagamento (várias formas possíveis)
+    const paymentId =
+      req.query.id ||         // IPN clássico
+      req.query['data.id'] || // Webhook moderno
+      req.body?.data?.id ||
+      req.body?.id;
 
-    console.log("MP webhook pagamento:", {
-      id: p.id,
-      status: p.status,
-      status_detail: p.status_detail,
-      external_reference: orderId,
-      payer_email: p.payer?.email,
-      transaction_amount: p.transaction_amount,
-      payment_type_id: p.payment_type_id,
-    });
+    if (topic !== 'payment' || !paymentId) {
+      console.log('Webhook não é de pagamento, ignorando', { topic, paymentId });
+      return res.status(200).json({ ignored: true });
+    }
+
+    // 🔍 consulta o pagamento no Mercado Pago
+    const paymentResponse = await mercadopago.payment.findById(paymentId);
+    const payment = paymentResponse.body;
+
+    const orderId = payment.external_reference; // vem do create-checkout
+    const mpStatus = payment.status;
+
+    const update = {
+      mp_payment_id: String(payment.id),
+      mp_status: mpStatus,
+      mp_raw: payment,
+    };
+
+    if (mpStatus === 'approved') {
+      update.status = 'paid';
+      update.download_allowed = true;
+    } else if (['rejected', 'cancelled', 'refunded', 'charged_back'].includes(mpStatus)) {
+      update.status = 'failed';
+      update.download_allowed = false;
+    }
 
     if (!orderId) {
-      console.warn("Pagamento sem external_reference. Não sei qual order atualizar.");
-      return res.status(200).send("ok");
+      console.warn('Pagamento sem external_reference, não sei qual pedido atualizar');
+      return res.status(200).json({ ok: true, skipped: true });
     }
 
-    // Mapeia status MP -> seu enum
-    let newStatus = "pendencia";
-    let downloadAllowed = false;
+    const { error: supaError } = await supabaseAdmin
+      .from('ebook_order')
+      .update(update)
+      .eq('id', orderId);
 
-    if (p.status === "approved") {
-      newStatus = "aprovado";
-      downloadAllowed = true;
-    } else if (p.status === "rejected" || p.status === "cancelled") {
-      newStatus = "rejeitado";
-    } else {
-      newStatus = "pendencia";
+    if (supaError) {
+      console.error('Erro ao atualizar pedido na Supabase:', supaError);
     }
 
-    // Atualiza pedido na Supabase
-    const { error } = await supabaseAdmin
-      .from("ebook_order")
-      .update({
-        status: newStatus,
-        download_allowed: downloadAllowed,
-        mp_payment_id: p.id,
-        mp_status: p.status,
-        mp_status_detail: p.status_detail,
-        paid_at: p.status === "approved" ? new Date().toISOString() : null,
-      })
-      .eq("id", orderId);
-
-    if (error) {
-      console.error("Erro atualizando order no Supabase:", error);
-    } else {
-      console.log("Order atualizada:", orderId, newStatus);
-    }
-
-    // SEMPRE responde 200 pro MP não ficar re-tentando
-    return res.status(200).send("ok");
+    return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error("Erro no webhook MP:", err);
-    // Mesmo em erro interno, MP exige 200
-    return res.status(200).send("ok");
+    console.error('Erro webhook:', err);
+    // Mercado Pago só precisa de 200 pra parar de reenviar
+    return res.status(200).json({ error: true });
   }
 }
