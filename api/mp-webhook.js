@@ -9,7 +9,7 @@ mercadopago.configure({
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Método não permitido' });
   }
 
   try {
@@ -41,14 +41,23 @@ export default async function handler(req, res) {
     const dataId = req.query.id || req.query['data.id'] || req.body.data?.id;
 
     if (topic !== 'payment' || !dataId) {
+      console.log('[MP Webhook] Ignorado: topic', topic, 'dataId', dataId);
       return res.status(200).json({ ignored: true });
     }
 
     // Busca o pagamento no MP
     const paymentResponse = await mercadopago.payment.findById(dataId);
     const payment = paymentResponse.body;
+    console.log('[MP Webhook] Recebido:', {
+      dataId,
+      paymentId: payment.id,
+      external_reference: payment.external_reference,
+      preference_id: payment.preference_id,
+      status: payment.status
+    });
 
-    const orderId = payment.external_reference;
+    let orderId = payment.external_reference;
+    const preferenceIdFromPayment = payment.preference_id || payment.preference?.id || payment.order?.preference_id;
     const mpStatus = payment.status;
 
     const update = {
@@ -65,15 +74,55 @@ export default async function handler(req, res) {
       update.download_allowed = false;
     }
 
-    const { data: updatedOrder, error: updateError } = await supabaseAdmin
-      .from('ebook_order')
-      .update(update)
-      .eq('id', orderId)
-      .select('id, email')
-      .single();
+    let updatedOrder;
+    let updateError;
 
-    if (updateError) {
-      console.error('Erro ao atualizar ebook_order:', JSON.stringify(updateError, null, 2));
+    // Tenta atualizar por external_reference
+    if (orderId) {
+      ({ data: updatedOrder, error: updateError } = await supabaseAdmin
+        .from('ebook_order')
+        .update(update)
+        .eq('id', orderId)
+        .select('id, email')
+        .single());
+      if (updateError) {
+        console.error('[MP Webhook] Erro ao atualizar por external_reference:', JSON.stringify(updateError, null, 2));
+      } else if (updatedOrder) {
+        console.log('[MP Webhook] Pedido atualizado por external_reference:', updatedOrder);
+      }
+    }
+
+    // Fallback: se não achou por external_reference, tenta por mp_preference_id
+    if ((!orderId || updateError || !updatedOrder) && preferenceIdFromPayment) {
+      const { data: found, error: findError } = await supabaseAdmin
+        .from('ebook_order')
+        .select('id')
+        .eq('mp_preference_id', String(preferenceIdFromPayment))
+        .limit(1)
+        .maybeSingle();
+
+      if (findError) {
+        console.error('[MP Webhook] Erro ao buscar pedido por mp_preference_id:', JSON.stringify(findError, null, 2));
+      } else if (found?.id) {
+        orderId = found.id;
+        ({ data: updatedOrder, error: updateError } = await supabaseAdmin
+          .from('ebook_order')
+          .update(update)
+          .eq('id', orderId)
+          .select('id, email')
+          .single());
+        if (updateError) {
+          console.error('[MP Webhook] Erro ao atualizar por mp_preference_id:', JSON.stringify(updateError, null, 2));
+        } else if (updatedOrder) {
+          console.log('[MP Webhook] Pedido atualizado por mp_preference_id:', updatedOrder);
+        }
+      } else {
+        console.warn('[MP Webhook] Nenhum pedido encontrado para mp_preference_id:', preferenceIdFromPayment);
+      }
+    }
+
+    if (!updatedOrder) {
+      console.warn('[MP Webhook] Nenhum pedido atualizado para pagamento:', dataId, 'preference:', preferenceIdFromPayment, 'external_reference:', orderId);
     }
 
     return res.status(200).json({ ok: true });

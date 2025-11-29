@@ -9,11 +9,13 @@ if (!accessToken) {
   console.error('MP_ACCESS_TOKEN não configurado!');
 }
 
-mercadopago.configure({ access_token: accessToken });
+if (accessToken) {
+  mercadopago.configure({ access_token: accessToken });
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    return res.status(405).json({ error: 'Método não permitido' });
   }
 
   try {
@@ -50,8 +52,14 @@ export default async function handler(req, res) {
     const orderId = order.id;
 
     // 2) CRIA A PREFERÊNCIA NO MERCADO PAGO
+    if (!accessToken) {
+      console.error('MP_ACCESS_TOKEN ausente — abortando criação do checkout');
+      return res.status(500).json({ step: 'mp-preference', error: 'MP_ACCESS_TOKEN ausente no servidor' });
+    }
     let preference;
     try {
+      const notificationUrl = process.env.MP_NOTIFICATION_URL || 'https://octopusaxisebook.com/api/mp-webhook';
+
       preference = await mercadopago.preferences.create({
         items: [
           {
@@ -70,27 +78,38 @@ export default async function handler(req, res) {
           pending: 'https://octopusaxisebook.com/pagamento-pendente.html',
           failure: 'https://octopusaxisebook.com/pagamento-erro.html',
         },
-        notification_url: 'https://octopusaxisebook.com/api/mp-webhook',
+        notification_url: notificationUrl,
         auto_return: 'approved',
       });
     } catch (mpErr) {
-      console.error('Erro Mercado Pago (preferences.create):', mpErr?.response?.body || mpErr);
+      // Improved logging for easier debugging in the logs (without leaking the token)
+      if (mpErr?.response) {
+        console.error('Erro Mercado Pago (preferences.create): status', mpErr.response.status, 'body', JSON.stringify(mpErr.response.body));
+      } else {
+        console.error('Erro Mercado Pago (preferences.create):', mpErr);
+      }
       return res.status(500).json({
         step: 'mp-preference',
         error: 'Erro ao criar preferência no Mercado Pago',
-        details: mpErr?.response?.body || mpErr?.message || mpErr,
+        details: mpErr?.response?.body || mpErr?.message || String(mpErr),
       });
     }
 
-    const initPoint = preference.body.init_point;
-    const prefId = preference.body.id;
+    const initPoint = preference?.body?.init_point;
+    const prefId = preference?.body?.id;
+
+    if (!initPoint || !prefId) {
+      console.error('Resposta inesperada do Mercado Pago:', JSON.stringify(preference?.body || preference));
+      return res.status(500).json({ step: 'mp-preference', error: 'Resposta inesperada do Mercado Pago, favor verificar logs' });
+    }
 
     // 3) ATUALIZA A LINHA NA SUPABASE COM INFO DA PREFERÊNCIA
     const { error: supaUpdateError } = await supabaseAdmin
       .from('ebook_order')
       .update({
-        mp_external_reference: orderId,
-        mp_raw: { preference_id: prefId },
+        mp_external_reference: String(orderId),
+        mp_preference_id: String(prefId),
+        mp_raw: { preference: preference.body },
       })
       .eq('id', orderId);
 
