@@ -28,7 +28,7 @@ export default async function handler(req, res) {
 
     // 1) INSERÇÃO NA SUPABASE
     const { data: order, error: supaError } = await supabaseAdmin
-      .from('ebook_order')
+      .from('public.ebook_order')
       .insert({
         name,
         email,
@@ -87,7 +87,7 @@ export default async function handler(req, res) {
 
     // 3) ATUALIZA A LINHA NA SUPABASE COM INFO DA PREFERÊNCIA
     const { error: supaUpdateError } = await supabaseAdmin
-      .from('ebook_order')
+      .from('public.ebook_order')
       .update({
         mp_external_reference: orderId,
         mp_raw: { preference_id: prefId },
@@ -102,8 +102,7 @@ export default async function handler(req, res) {
     // 4) RESPONDE PARA O FRONTEND NO FORMATO QUE O script.js ESPERA
     return res.status(200).json({
       checkoutUrl: initPoint,   // <-- script.js usa "checkoutUrl"
-      preferenceId: prefId,
-      orderId,
+      preferenceId: prefId
     });
 
   } catch (err) {

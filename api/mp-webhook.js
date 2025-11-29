@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     }
 
     await supabaseAdmin
-      .from('ebook_order')
+      .from('public.ebook_order')
       .update(update)
       .eq('id', orderId);
 

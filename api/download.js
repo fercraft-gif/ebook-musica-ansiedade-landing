@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   try {
     const { data, error } = await supabaseAdmin
-      .from('ebook_order')
+      .from('public.ebook_order')
       .select('id, download_allowed, created_at')
       .eq('email', email)
       .eq('download_allowed', true)
