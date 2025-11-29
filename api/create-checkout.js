@@ -1,5 +1,4 @@
 // /api/create-checkout.js
-
 import mercadopago from 'mercadopago';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
@@ -45,7 +44,7 @@ export default async function handler(req, res) {
     const orderId = order.id;
 
     // 2. cria preferência no Mercado Pago
-    const preference = await mercadopago.preferences.create({
+    const preferenceResp = await mercadopago.preferences.create({
       items: [
         {
           title: 'E-book Música & Ansiedade',
@@ -67,21 +66,21 @@ export default async function handler(req, res) {
       notification_url: 'https://octopusaxisebook.com/api/mp-webhook',
     });
 
-    const initPoint = preference.body.init_point;
-    const prefId = preference.body.id;
+    const initPoint = preferenceResp.body.init_point;
+    const prefId = preferenceResp.body.id;
 
-    // 3. salva referencia da preferência (opcional, mas bom)
+    // 3. salva referencia da preferência (opcional)
     await supabaseAdmin
       .from('ebook_order')
       .update({
-        mp_external_reference: orderId,
+        mp_external_reference: String(orderId),
         mp_raw: { preference_id: prefId },
       })
       .eq('id', orderId);
 
     // 4. responde para o frontend
     return res.status(200).json({
-      initPoint,
+      checkoutUrl: initPoint,   // <- nome que o script.js espera
       preferenceId: prefId,
     });
   } catch (err) {

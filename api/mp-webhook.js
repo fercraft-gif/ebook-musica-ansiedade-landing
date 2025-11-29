@@ -1,8 +1,7 @@
 // /api/mp-webhook.js
-
+import crypto from 'crypto';
 import mercadopago from 'mercadopago';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
-import crypto from 'crypto';
 
 mercadopago.configure({
   access_token: process.env.MP_ACCESS_TOKEN,
@@ -10,12 +9,12 @@ mercadopago.configure({
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
-    return res.status(405).end();
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    // 🔒 Validação opcional de assinatura (só roda se TUDO existir)
-    const signature = req.headers['x-signature'];
+    // 🔒 Validação opcional da assinatura (x-signature)
+    const signature = req.headers['x-signature']; // "ts=...,v1=..."
     const xRequestId = req.headers['x-request-id'];
     const secret = process.env.MP_WEBHOOK_SECRET;
 
@@ -24,14 +23,7 @@ export default async function handler(req, res) {
       const ts = tsPart.split('=')[1];
       const v1 = v1Part.split('=')[1];
 
-      // tenta pegar o id tanto de IPN quanto de Webhook
-      const dataIdForTemplate =
-        req.query['data.id'] ||
-        req.query.id ||
-        req.body?.data?.id ||
-        req.body?.id;
-
-      const template = `id:${dataIdForTemplate};request-id:${xRequestId};ts:${ts};`;
+      const template = `id:${req.query['data.id'] || req.query.id};request-id:${xRequestId};ts:${ts};`;
 
       const hash = crypto
         .createHmac('sha256', secret)
@@ -44,30 +36,19 @@ export default async function handler(req, res) {
       }
     }
 
-    // 🔔 identifica tipo de evento
-    const topic =
-      req.query.topic ||      // IPN: ?topic=payment&id=...
-      req.query.type ||       // variações
-      req.body?.type ||       // Webhook novo
-      req.body?.action;       // fallback
+    // Tópico + ID
+    const topic = req.query.topic || req.body.type;
+    const dataId = req.query.id || req.query['data.id'] || req.body.data?.id;
 
-    // id do pagamento (várias formas possíveis)
-    const paymentId =
-      req.query.id ||         // IPN clássico
-      req.query['data.id'] || // Webhook moderno
-      req.body?.data?.id ||
-      req.body?.id;
-
-    if (topic !== 'payment' || !paymentId) {
-      console.log('Webhook não é de pagamento, ignorando', { topic, paymentId });
+    if (topic !== 'payment' || !dataId) {
       return res.status(200).json({ ignored: true });
     }
 
-    // 🔍 consulta o pagamento no Mercado Pago
-    const paymentResponse = await mercadopago.payment.findById(paymentId);
+    // Busca o pagamento no MP
+    const paymentResponse = await mercadopago.payment.findById(dataId);
     const payment = paymentResponse.body;
 
-    const orderId = payment.external_reference; // vem do create-checkout
+    const orderId = payment.external_reference;
     const mpStatus = payment.status;
 
     const update = {
@@ -79,29 +60,20 @@ export default async function handler(req, res) {
     if (mpStatus === 'approved') {
       update.status = 'paid';
       update.download_allowed = true;
-    } else if (['rejected', 'cancelled', 'refunded', 'charged_back'].includes(mpStatus)) {
+    } else if (mpStatus === 'rejected' || mpStatus === 'cancelled') {
       update.status = 'failed';
       update.download_allowed = false;
     }
 
-    if (!orderId) {
-      console.warn('Pagamento sem external_reference, não sei qual pedido atualizar');
-      return res.status(200).json({ ok: true, skipped: true });
-    }
-
-    const { error: supaError } = await supabaseAdmin
+    await supabaseAdmin
       .from('ebook_order')
       .update(update)
       .eq('id', orderId);
 
-    if (supaError) {
-      console.error('Erro ao atualizar pedido na Supabase:', supaError);
-    }
-
     return res.status(200).json({ ok: true });
   } catch (err) {
     console.error('Erro webhook:', err);
-    // Mercado Pago só precisa de 200 pra parar de reenviar
+    // MP só precisa de 200 para parar de reenviar, então não manda 500 aqui
     return res.status(200).json({ error: true });
   }
 }
