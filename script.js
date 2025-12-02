@@ -34,8 +34,17 @@ function setupModalCheckout() {
   const copyPixBtn = document.getElementById('copy-pix-code');
   const copyPixFeedback = document.getElementById('copy-pix-feedback');
 
-  if (!modal || !checkoutForm || !buyerNameInput || !buyerEmailInput || !modalMessage) {
-    console.warn('Modal/inputs não encontrados — checkout do modal não será inicializado.');
+  // Se a estrutura do modal não existir, não quebra o site
+  if (
+    !modal ||
+    !checkoutForm ||
+    !buyerNameInput ||
+    !buyerEmailInput ||
+    !modalMessage
+  ) {
+    console.warn(
+      'Modal/inputs não encontrados — checkout do modal não será inicializado.'
+    );
     return;
   }
 
@@ -64,11 +73,12 @@ function setupModalCheckout() {
   payCardFinalBtn?.addEventListener('click', () => openModal('card'));
   modalClose?.addEventListener('click', closeModal);
 
+  // fecha clicando fora
   modal.addEventListener('click', (e) => {
     if (e.target === modal) closeModal();
   });
 
-  // submit do modal
+  // SUBMIT DO FORM DO MODAL
   checkoutForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -105,9 +115,12 @@ function setupModalCheckout() {
       console.log('create-checkout →', res.status, data);
 
       // salva email SEMPRE (antes de redirect)
-      try { localStorage.setItem('buyer_email', email); } catch {}
+      try {
+        localStorage.setItem('buyer_email', email);
+      } catch {}
 
-      if (!res.ok || !data?.checkoutUrl) {
+      // 👇 AQUI está o alinhamento com o backend:
+      if (!res.ok || !data?.initPoint) {
         console.error('Falha em /api/create-checkout:', data);
 
         if (paymentMethod === 'pix') {
@@ -123,8 +136,8 @@ function setupModalCheckout() {
         return;
       }
 
-      // sucesso
-      window.location.href = data.checkoutUrl;
+      // SUCESSO → redireciona para o Checkout Pro do Mercado Pago
+      window.location.href = data.initPoint;
     } catch (err) {
       console.error('Erro de rede em /api/create-checkout:', err);
 
@@ -141,7 +154,7 @@ function setupModalCheckout() {
     }
   });
 
-  // copiar pix
+  // COPIAR PIX
   copyPixBtn?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(PIX_COPY_CODE);

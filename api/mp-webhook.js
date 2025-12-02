@@ -1,11 +1,15 @@
 // /api/mp-webhook.js
-import crypto from 'crypto';
+
 import mercadopago from 'mercadopago';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
-mercadopago.configure({
-  access_token: process.env.MP_ACCESS_TOKEN,
-});
+const accessToken = process.env.MP_ACCESS_TOKEN;
+
+if (!accessToken) {
+  console.error('MP_ACCESS_TOKEN não configurado para webhook!');
+} else {
+  mercadopago.configure({ access_token: accessToken });
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,122 +17,62 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 🔒 Validação opcional da assinatura (x-signature)
-    const signature = req.headers['x-signature']; // "ts=...,v1=..."
-    const xRequestId = req.headers['x-request-id'];
-    const secret = process.env.MP_WEBHOOK_SECRET;
+    const body = req.body || {};
+    const paymentId = body?.data?.id || body?.data?.payment?.id;
 
-    if (signature && xRequestId && secret) {
-      const [tsPart, v1Part] = signature.split(',');
-      const ts = tsPart.split('=')[1];
-      const v1 = v1Part.split('=')[1];
-
-      const template = `id:${req.query['data.id'] || req.query.id};request-id:${xRequestId};ts:${ts};`;
-
-      const hash = crypto
-        .createHmac('sha256', secret)
-        .update(template)
-        .digest('hex');
-
-      if (hash !== v1) {
-        console.warn('Assinatura inválida no webhook MP');
-        return res.status(401).end();
-      }
+    if (!paymentId) {
+      console.error('Webhook sem paymentId válido:', JSON.stringify(body));
+      // responde 200 pra não fazer o MP ficar re-tentando sem parar
+      return res.status(200).json({ received: true });
     }
 
-    // Tópico + ID
-    const topic = req.query.topic || req.body.type;
-    const dataId = req.query.id || req.query['data.id'] || req.body.data?.id;
-
-    if (topic !== 'payment' || !dataId) {
-      console.log('[MP Webhook] Ignorado: topic', topic, 'dataId', dataId);
-      return res.status(200).json({ ignored: true });
+    // 1) Busca detalhes do pagamento no Mercado Pago
+    let payment;
+    try {
+      const resp = await mercadopago.payment.findById(paymentId);
+      payment = resp.body;
+    } catch (mpErr) {
+      console.error(
+        'Erro ao buscar payment no Mercado Pago:',
+        mpErr?.response?.body || mpErr
+      );
+      return res.status(500).json({
+        error: 'Erro ao consultar pagamento no Mercado Pago',
+      });
     }
 
-    // Busca o pagamento no MP
-    const paymentResponse = await mercadopago.payment.findById(dataId);
-    const payment = paymentResponse.body;
-    console.log('[MP Webhook] Recebido:', {
-      dataId,
-      paymentId: payment.id,
-      external_reference: payment.external_reference,
-      preference_id: payment.preference_id,
-      status: payment.status
-    });
+    const externalRef = payment.external_reference;
+    const mpStatus = payment.status; // 'approved', 'pending', 'rejected', etc.
+    const approved = mpStatus === 'approved';
 
-    let orderId = payment.external_reference;
-    const preferenceIdFromPayment = payment.preference_id || payment.preference?.id || payment.order?.preference_id;
-    const mpStatus = payment.status;
-
-    const update = {
-      mp_payment_id: String(payment.id),
-      mp_status: mpStatus,
-      mp_raw: payment,
-    };
-
-    if (mpStatus === 'approved') {
-      update.status = 'paid';
-      update.download_allowed = true;
-    } else if (mpStatus === 'rejected' || mpStatus === 'cancelled') {
-      update.status = 'failed';
-      update.download_allowed = false;
+    if (!externalRef) {
+      console.error('Pagamento sem external_reference:', payment);
+      return res.status(200).json({ ok: true });
     }
 
-    let updatedOrder;
-    let updateError;
+    // 2) Atualiza a linha na tabela ebook_order
+    const { error: supaError } = await supabaseAdmin
+      .from('ebook_order')
+      .update({
+        mp_status: mpStatus,                  // text
+        mp_payment_id: String(paymentId),     // text
+        status: approved ? 'paid' : 'pending', // text
+        download_allowed: approved,           // bool
+        mp_raw: payment,                      // jsonb (estado mais recente do payment)
+        mp_external_reference: String(externalRef), // text (redundante, mas útil p/ debug)
+      })
+      .eq('id', externalRef); // external_reference = orderId (uuid) que criamos no checkout
 
-    // Tenta atualizar por external_reference
-    if (orderId) {
-      ({ data: updatedOrder, error: updateError } = await supabaseAdmin
-        .from('ebook_order')
-        .update(update)
-        .eq('id', orderId)
-        .select('id, email')
-        .single());
-      if (updateError) {
-        console.error('[MP Webhook] Erro ao atualizar por external_reference:', JSON.stringify(updateError, null, 2));
-      } else if (updatedOrder) {
-        console.log('[MP Webhook] Pedido atualizado por external_reference:', updatedOrder);
-      }
-    }
-
-    // Fallback: se não achou por external_reference, tenta por mp_preference_id
-    if ((!orderId || updateError || !updatedOrder) && preferenceIdFromPayment) {
-      const { data: found, error: findError } = await supabaseAdmin
-        .from('ebook_order')
-        .select('id')
-        .eq('mp_preference_id', String(preferenceIdFromPayment))
-        .limit(1)
-        .maybeSingle();
-
-      if (findError) {
-        console.error('[MP Webhook] Erro ao buscar pedido por mp_preference_id:', JSON.stringify(findError, null, 2));
-      } else if (found?.id) {
-        orderId = found.id;
-        ({ data: updatedOrder, error: updateError } = await supabaseAdmin
-          .from('ebook_order')
-          .update(update)
-          .eq('id', orderId)
-          .select('id, email')
-          .single());
-        if (updateError) {
-          console.error('[MP Webhook] Erro ao atualizar por mp_preference_id:', JSON.stringify(updateError, null, 2));
-        } else if (updatedOrder) {
-          console.log('[MP Webhook] Pedido atualizado por mp_preference_id:', updatedOrder);
-        }
-      } else {
-        console.warn('[MP Webhook] Nenhum pedido encontrado para mp_preference_id:', preferenceIdFromPayment);
-      }
-    }
-
-    if (!updatedOrder) {
-      console.warn('[MP Webhook] Nenhum pedido atualizado para pagamento:', dataId, 'preference:', preferenceIdFromPayment, 'external_reference:', orderId);
+    if (supaError) {
+      console.error(
+        'Erro ao atualizar pedido no webhook:',
+        JSON.stringify(supaError, null, 2)
+      );
     }
 
     return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error('Erro webhook:', err);
-    // MP só precisa de 200 para parar de reenviar, então não manda 500 aqui
-    return res.status(200).json({ error: true });
+    console.error('Erro interno em /api/mp-webhook:', err);
+    return res.status(500).json({ error: 'Erro interno no webhook' });
   }
 }

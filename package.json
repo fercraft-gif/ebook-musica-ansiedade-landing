@@ -3,10 +3,7 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
-  
-  "scripts": {
-    "test-mp-preference": "node scripts/test-mp-preference.js"
-  },
+  "scripts": {},
   "dependencies": {
     "@supabase/supabase-js": "^2.84.0",
     "mercadopago": "^1.5.17"
