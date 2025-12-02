@@ -14,14 +14,17 @@ export default async function handler(req, res) {
   try {
     const { data, error } = await supabaseAdmin
       .from('ebook_order')
-      .select('id, email, status, mp_status, download_allowed, mp_payment_id, mp_external_reference, created_at')
+      .select(
+        'id, email, status, mp_status, download_allowed, mp_payment_id, mp_external_reference'
+      )
       .eq('email', email)
       .eq('download_allowed', true)
-      .order('created_at', { ascending: false })
+      // se quiser, dá pra ordenar por mp_payment_id (último pagamento),
+      // mas não é obrigatório. Vou deixar sem ordenação pra evitar ruído.
       .limit(1)
       .maybeSingle(); // retorna null se não tiver linha
 
-       if (error) {
+    if (error) {
       console.error(
         'Erro ao verificar download_allowed:',
         JSON.stringify(error, null, 2)
@@ -43,7 +46,6 @@ export default async function handler(req, res) {
       mp_status: data.mp_status,
       mp_payment_id: data.mp_payment_id,
       mp_external_reference: data.mp_external_reference,
-      created_at: data.created_at,
     });
   } catch (e) {
     console.error('Erro geral em /api/check-download:', e);

@@ -1,12 +1,11 @@
 // /api/create-checkout.js
-
 import mercadopago from 'mercadopago';
 import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 
 const accessToken = process.env.MP_ACCESS_TOKEN;
 
 if (!accessToken) {
-  console.error('MP_ACCESS_TOKEN não configurado nas variáveis de ambiente!');
+  console.error('MP_ACCESS_TOKEN não configurado!');
 } else {
   mercadopago.configure({ access_token: accessToken });
 }
@@ -17,110 +16,60 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1) PEGAR DADOS DO BODY
-    let name, email, paymentMethod;
-    try {
-      ({ name, email, paymentMethod } = req.body || {});
-    } catch {
-      return res.status(400).json({
-        step: 'validation',
-        error: 'Body inválido. Envie JSON com name, email e paymentMethod.',
-      });
-    }
+    const { name, email } = req.body || {};
 
     if (!name || !email) {
-      return res.status(400).json({
-        step: 'validation',
-        error: 'Nome e e-mail são obrigatórios.',
-      });
+      return res.status(400).json({ error: 'Nome e e-mail são obrigatórios.' });
     }
 
-    // normaliza paymentMethod
-    if (paymentMethod !== 'pix' && paymentMethod !== 'card') {
-      paymentMethod = 'pix';
-    }
-
-    // 2) INSERIR LINHA NA TABELA ebook_order
-    const { data: order, error: supaInsertError } = await supabaseAdmin
+    //
+    // 1) CRIA pedido inicial na tabela
+    //
+    const { data: order, error: insertErr } = await supabaseAdmin
       .from('ebook_order')
       .insert({
         name,
         email,
-        status: 'pending',        // texto
-        mp_status: 'pending',     // texto
-        download_allowed: false,  // bool
+        status: 'pending',
+        mp_status: null,
+        download_allowed: false
       })
-      .select('id')
+      .select()
       .single();
 
-    if (supaInsertError) {
-      console.error(
-        'Erro ao inserir pedido na Supabase:',
-        JSON.stringify(supaInsertError, null, 2)
-      );
+    if (insertErr) {
+      console.error('Erro ao inserir pedido:', insertErr);
       return res.status(500).json({
         step: 'supabase-insert',
-        error: 'Erro ao criar pedido na Supabase',
-        details: supaInsertError,
+        error: 'Erro ao criar pedido no Supabase',
+        details: insertErr
       });
     }
 
     const orderId = order.id;
 
-    // 3) CRIAR PREFERÊNCIA NO MERCADO PAGO
-    if (!accessToken) {
-      console.error('MP_ACCESS_TOKEN ausente — abortando criação do checkout');
-      return res.status(500).json({
-        step: 'mp-preference',
-        error: 'MP_ACCESS_TOKEN ausente no servidor',
-      });
-    }
-
+    //
+    // 2) Cria preferência no Mercado Pago
+    //
     let preference;
     try {
-      const notificationUrl =
-        process.env.MP_NOTIFICATION_URL ||
-        'https://octopusaxisebook.com/api/mp-webhook';
-
       preference = await mercadopago.preferences.create({
         items: [
           {
             title: 'E-book Música & Ansiedade',
             quantity: 1,
-            currency_id: 'BRL',
-            unit_price: 129,
-          },
+            unit_price: 129.0
+          }
         ],
         external_reference: orderId,
-        metadata: {
-          paymentMethod: paymentMethod || 'pix',
-          orderId,
-          email,
-        },
-        back_urls: {
-          success: 'https://octopusaxisebook.com/obrigado.html',
-          pending: 'https://octopusaxisebook.com/pagamento-pendente.html',
-          failure: 'https://octopusaxisebook.com/pagamento-erro.html',
-        },
-        notification_url: notificationUrl,
-        auto_return: 'approved',
+        payer: { email }
       });
     } catch (mpErr) {
-      if (mpErr?.response) {
-        console.error(
-          'Erro Mercado Pago (preferences.create): status',
-          mpErr.response.status,
-          'body',
-          JSON.stringify(mpErr.response.body)
-        );
-      } else {
-        console.error('Erro Mercado Pago (preferences.create):', mpErr);
-      }
-
+      console.error('Erro Mercado Pago:', mpErr);
       return res.status(500).json({
         step: 'mp-preference',
         error: 'Erro ao criar preferência no Mercado Pago',
-        details: mpErr?.response?.body || mpErr?.message || String(mpErr),
+        details: mpErr?.response?.body || mpErr?.message || String(mpErr)
       });
     }
 
@@ -128,49 +77,46 @@ export default async function handler(req, res) {
     const prefId = preference?.body?.id;
 
     if (!initPoint || !prefId) {
-      console.error(
-        'Resposta inesperada do Mercado Pago:',
-        JSON.stringify(preference?.body || preference)
-      );
+      console.error('Resposta inesperada do MP:', preference?.body);
       return res.status(500).json({
-        step: 'mp-preference',
-        error:
-          'Resposta inesperada do Mercado Pago, favor verificar logs no servidor',
-        details: preference?.body || null,
+        step: 'mp-missing-init-point',
+        error: 'MP não retornou initPoint'
       });
     }
 
-    // 4) ATUALIZAR LINHA NA TABELA COM DADOS DA PREFERÊNCIA
-    const { error: supaUpdateError } = await supabaseAdmin
+    //
+    // 3) Atualiza o registro com dados da preferência
+    //
+    const { error: updateErr } = await supabaseAdmin
       .from('ebook_order')
       .update({
-        mp_external_reference: String(orderId), // text
-        mp_raw: preference.body,                // jsonb
+        mp_external_reference: String(orderId),
+        mp_raw: preference.body
       })
       .eq('id', orderId);
 
-    if (supaUpdateError) {
-      console.error(
-        'Erro ao atualizar pedido com dados da preferência:',
-        JSON.stringify(supaUpdateError, null, 2)
-      );
-      // não bloqueia o fluxo
+    if (updateErr) {
+      console.error('Erro ao atualizar preferência no Supabase:', updateErr);
+      // Não bloqueia — continua
     }
 
-    // 5) RESPONDER PARA O FRONTEND
+    //
+    // 4) RETORNA PARA O FRONT
+    //
     return res.status(200).json({
       initPoint,
       preferenceId: prefId,
       orderId,
       name,
-      email,
+      email
     });
+
   } catch (err) {
     console.error('Erro interno em /api/create-checkout:', err);
     return res.status(500).json({
-      step: 'unknown',
+      step: 'internal',
       error: 'Erro interno ao criar checkout.',
-      details: err?.message || String(err),
+      details: err?.message || String(err)
     });
   }
 }
