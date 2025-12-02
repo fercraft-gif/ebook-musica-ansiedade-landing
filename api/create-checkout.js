@@ -17,9 +17,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    // TEM QUE SER "let" pra poder normalizar o paymentMethod
+    // usa let pra normalizar o paymentMethod
     let { name, email, paymentMethod } = req.body || {};
 
+    // validação
     if (!name || !email) {
       return res.status(400).json({
         step: 'validation',
@@ -27,24 +28,20 @@ export default async function handler(req, res) {
       });
     }
 
-    // normaliza paymentMethod
     if (paymentMethod !== 'pix' && paymentMethod !== 'card') {
       paymentMethod = 'pix';
     }
 
-    // 1) INSERÇÃO INICIAL NA SUPABASE
+    // 1) INSERIR LINHA NA TABELA ebook_order
     const { data: order, error: supaError } = await supabaseAdmin
       .from('ebook_order')
       .insert({
-        // Nomes IGUAIS aos da tabela:
         name,                  // text
         email,                 // text
         status: 'pending',     // text
         mp_status: 'pending',  // text
         download_allowed: false, // bool
-        // mp_raw            -> jsonb, fica NULL por enquanto
-        // mp_external_reference -> text, fica NULL por enquanto
-        // mp_payment_id     -> text, será preenchido no webhook
+        // mp_raw, mp_external_reference, mp_payment_id ficam NULL por enquanto
       })
       .select('id')
       .single();
@@ -63,7 +60,7 @@ export default async function handler(req, res) {
 
     const orderId = order.id;
 
-    // 2) CRIA A PREFERÊNCIA NO MERCADO PAGO
+    // 2) CRIAR PREFERÊNCIA NO MERCADO PAGO
     if (!accessToken) {
       console.error('MP_ACCESS_TOKEN ausente — abortando criação do checkout');
       return res.status(500).json({
@@ -84,10 +81,14 @@ export default async function handler(req, res) {
             title: 'E-book Música & Ansiedade',
             quantity: 1,
             currency_id: 'BRL',
-            unit_price: 129, // R$
+            unit_price: 129,
           },
         ],
-        external_reference: orderId, // vamos casar com `mp_external_reference`
+        payer: {
+          name,
+          email,
+        },
+        external_reference: orderId, // uuid da linha que acabamos de criar
         metadata: {
           paymentMethod: paymentMethod || 'pix',
         },
@@ -133,15 +134,12 @@ export default async function handler(req, res) {
       });
     }
 
-    // 3) ATUALIZA A LINHA NA SUPABASE COM OS CAMPOS EXTRAS
+    // 3) ATUALIZAR A LINHA COM OS DADOS DA PREFERÊNCIA
     const { error: supaUpdateError } = await supabaseAdmin
       .from('ebook_order')
       .update({
-        // nomes exatamente como na tabela:
         mp_external_reference: String(orderId), // text
-        mp_raw: preference.body,               // jsonb -> objeto inteiro
-        // mp_payment_id continua NULL aqui;
-        // será preenchido no /api/mp-webhook quando o pagamento for aprovado
+        mp_raw: preference.body,                // jsonb
       })
       .eq('id', orderId);
 
@@ -150,13 +148,16 @@ export default async function handler(req, res) {
         'Erro ao atualizar pedido com dados da preferência:',
         JSON.stringify(supaUpdateError, null, 2)
       );
-      // não bloqueia o checkout
+      // não bloqueia o fluxo, só loga
     }
 
-    // 4) RESPONDE PARA O FRONTEND
+    // 4) RESPONDE PARA O FRONT
     return res.status(200).json({
       initPoint: initPoint,
       preferenceId: prefId,
+      orderId,
+      name,
+      email,
     });
   } catch (err) {
     console.error('Erro interno em /api/create-checkout:', err);
