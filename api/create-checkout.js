@@ -6,7 +6,7 @@ import { supabaseAdmin } from '../lib/supabaseAdmin.js';
 const accessToken = process.env.MP_ACCESS_TOKEN;
 
 if (!accessToken) {
-  console.error('MP_ACCESS_TOKEN não configurado!');
+  console.error('MP_ACCESS_TOKEN não configurado nas variáveis de ambiente!');
 } else {
   mercadopago.configure({ access_token: accessToken });
 }
@@ -17,10 +17,17 @@ export default async function handler(req, res) {
   }
 
   try {
-    // usa let pra normalizar o paymentMethod
-    let { name, email, paymentMethod } = req.body || {};
+    // 1) PEGAR DADOS DO BODY
+    let name, email, paymentMethod;
+    try {
+      ({ name, email, paymentMethod } = req.body || {});
+    } catch {
+      return res.status(400).json({
+        step: 'validation',
+        error: 'Body inválido. Envie JSON com name, email e paymentMethod.',
+      });
+    }
 
-    // validação
     if (!name || !email) {
       return res.status(400).json({
         step: 'validation',
@@ -28,39 +35,39 @@ export default async function handler(req, res) {
       });
     }
 
+    // normaliza paymentMethod
     if (paymentMethod !== 'pix' && paymentMethod !== 'card') {
       paymentMethod = 'pix';
     }
 
-    // 1) INSERIR LINHA NA TABELA ebook_order
-    const { data: order, error: supaError } = await supabaseAdmin
+    // 2) INSERIR LINHA NA TABELA ebook_order
+    const { data: order, error: supaInsertError } = await supabaseAdmin
       .from('ebook_order')
       .insert({
-        name,                  // text
-        email,                 // text
-        status: 'pending',     // text
-        mp_status: 'pending',  // text
-        download_allowed: false, // bool
-        // mp_raw, mp_external_reference, mp_payment_id ficam NULL por enquanto
+        name,
+        email,
+        status: 'pending',        // texto
+        mp_status: 'pending',     // texto
+        download_allowed: false,  // bool
       })
       .select('id')
       .single();
 
-    if (supaError) {
+    if (supaInsertError) {
       console.error(
         'Erro ao inserir pedido na Supabase:',
-        JSON.stringify(supaError, null, 2)
+        JSON.stringify(supaInsertError, null, 2)
       );
       return res.status(500).json({
         step: 'supabase-insert',
         error: 'Erro ao criar pedido na Supabase',
-        details: supaError,
+        details: supaInsertError,
       });
     }
 
     const orderId = order.id;
 
-    // 2) CRIAR PREFERÊNCIA NO MERCADO PAGO
+    // 3) CRIAR PREFERÊNCIA NO MERCADO PAGO
     if (!accessToken) {
       console.error('MP_ACCESS_TOKEN ausente — abortando criação do checkout');
       return res.status(500).json({
@@ -84,13 +91,11 @@ export default async function handler(req, res) {
             unit_price: 129,
           },
         ],
-        payer: {
-          name,
-          email,
-        },
-        external_reference: orderId, // uuid da linha que acabamos de criar
+        external_reference: orderId,
         metadata: {
           paymentMethod: paymentMethod || 'pix',
+          orderId,
+          email,
         },
         back_urls: {
           success: 'https://octopusaxisebook.com/obrigado.html',
@@ -131,10 +136,11 @@ export default async function handler(req, res) {
         step: 'mp-preference',
         error:
           'Resposta inesperada do Mercado Pago, favor verificar logs no servidor',
+        details: preference?.body || null,
       });
     }
 
-    // 3) ATUALIZAR A LINHA COM OS DADOS DA PREFERÊNCIA
+    // 4) ATUALIZAR LINHA NA TABELA COM DADOS DA PREFERÊNCIA
     const { error: supaUpdateError } = await supabaseAdmin
       .from('ebook_order')
       .update({
@@ -148,12 +154,12 @@ export default async function handler(req, res) {
         'Erro ao atualizar pedido com dados da preferência:',
         JSON.stringify(supaUpdateError, null, 2)
       );
-      // não bloqueia o fluxo, só loga
+      // não bloqueia o fluxo
     }
 
-    // 4) RESPONDE PARA O FRONT
+    // 5) RESPONDER PARA O FRONTEND
     return res.status(200).json({
-      initPoint: initPoint,
+      initPoint,
       preferenceId: prefId,
       orderId,
       name,
